@@ -33,7 +33,6 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 				}
 				lastStatTime = stat.GetTimestamp()
 				c.Logging.Tracef("resolver:%v received stats:%v for resolve destination:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
-
 				if !c.IsStatsClientConnected {
 					time.Sleep(1 * time.Second)
 					c.Logging.Tracef("resolver:%v: stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
