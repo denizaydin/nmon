@@ -176,7 +176,6 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 	// TODO: for testing purposes from local computer,
 	// ip := pr.Addr
 	ip := "88.225.253.200"
-
 	_, ok = s.IpASN[ip]
 	if !ok {
 		var p ripe.Prefix
@@ -194,6 +193,23 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 
 	for {
 		stats, err := stream.Recv()
+		if stats.GetClient().GetName() == "test" {
+			ip= "193.192.126.97"
+		}
+			_, ok = s.IpASN[ip]
+			if !ok {
+				var p ripe.Prefix
+				p.Set(ip)
+				p.GetData()
+				s.Logging.Debugf("got the client information from ripe:%v", p)
+				data, _ := p.Data["data"].(map[string]interface{})
+				asns := data["asns"].([]interface{})
+				//TODO: can it more than one ASN per prefix?
+				for _, h := range asns {
+					s.IpHolder[ip] = h.(map[string]interface{})["holder"].(string)
+					s.IpASN[ip] = h.(map[string]interface{})["asn"].(float64)
+				}
+			}
 		if err != nil {
 			s.Logging.Errorf("during reading client stats request from:%v", err)
 			return err
