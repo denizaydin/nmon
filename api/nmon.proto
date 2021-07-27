@@ -1,0 +1,127 @@
+/*
+export PATH="$PATH:$(go env GOPATH)/bin"
+protoc --go_out=. --go_opt=paths=source_relative \
+    --go-grpc_out=. --go-grpc_opt=require_unimplemented_servers=false,paths=source_relative \
+    api/nmon.proto
+*/
+syntax = "proto3";
+
+package api;
+
+option go_package = "nmon/api";
+
+message ClientStat {
+    int32 numberOfMonObjects = 1; 
+}
+
+message PingStat {
+    string destination = 1; 
+    int32 rtt = 2;
+}
+message ResolveStat {
+    string destination = 1;
+    int32 rtt = 2;
+    string resolvedip=3;
+    string resolver=4;
+}
+message TraceStat {
+    string destination = 1;
+    string hopIP = 2;
+    int32 hopTTL = 3;
+    int32 hopRTT= 4;
+}
+message StatsObject {
+    Client client =1;
+    int64 timestamp = 2; //timestamp of the stat
+    oneof Object {
+        ClientStat clientstat = 3;
+        PingStat pingstat = 4;
+        ResolveStat resolvestat = 5;
+        TraceStat tracestat = 6;
+    }
+}
+message PingDest {
+    string destination = 1; //Destination, www.nmon.com, 127.0.0.1 e.t.c
+    int32 updatetime = 2; //Time of the creation or update time.
+    int32 timeout = 3; //Max run time in nano seconds allowed for that monitoring object.
+    int32 interval = 4; //Probe interval in micro seconds
+    int32 packetSize = 5; //Packet size to be used by probe 
+    int32 ttl = 6; //TTL of the ip packet
+    map<string, string> groups = 7; //Member groups
+}
+message TraceDest {
+    string destination = 1; //Destination, www.nmon.com, 127.0.0.1 e.t.c
+    int32 updatetime = 2; //Time of the creation or update time.
+    int32 timeout = 3; //Max run time in nano seconds allowed for that monitoring object.
+    int32 interval = 4; //Probe interval in micro seconds
+    int32 packetSize = 5; //Packet size to be used by probe 
+    int32 ttl = 6; //TTL of the ip packet
+    map<string, string> groups = 7; //Member groups
+}
+message ResolveDest {
+    string destination = 1; //Destination, www.nmon.com
+    int32 updatetime = 2; //Time of the creation or update time.
+    int32 timeout = 3; //Max run time in nano allowed for that monitoring object.
+    string resolveServer = 4; //DNS Server to be used, 8.8.8.8 e.t.c
+    int32 interval = 5; //Probe interval in micro seconds
+    map<string, string> groups = 6; //Member groups
+}
+message AppDest {
+    string destination = 1; //Destination, www.nmon.com, 127.0.0.1
+    int32 updatetime = 2; //Time of the creation or update time.
+    int32 timeout = 3; //Max run time in seconds allowed for that monitoring object.
+    enum Type {
+        HTTP = 0;
+        HTTPS = 1;
+        GRPC = 2;
+    }
+    Type type = 4;
+    int32 interval = 5; //Prove interval in micro seconds
+    map<string, string> groups = 6; //Member groups
+}
+message MonitoringObject {
+    int64 updatetime = 1; //Time of the creation or update time.
+    oneof Object {
+        PingDest pingdest = 2;
+        TraceDest tracedest = 3;
+        ResolveDest resolvedest = 4;
+        AppDest appdest = 5;
+    }
+}
+/*
+Structures used by configuration and statistic servers
+*/
+//Client information to be used while registering configuration or statistic server
+message Client {
+    string id = 1; //Uniq id representing the client. It should be uniuqe during client reboots and between clients.
+    string name = 2; //Name of client. Must be unique.
+    map<string, string> groups = 3; //Member groups
+    bool addAsPingDest = 4; //Willing to be monitored as pingDest. If true this client will monitored by its group members.
+    bool addAsTraceDest = 5; //Willing to be monitores as TraceDest. If true this client will monitored by its group members.
+    bool addAsAppDest = 6; //Willing to be monitores as TraceDest. If true this client will monitored by its group members.
+}
+//Connect message used while registering the servers.
+message Connect {
+    Client client = 1;
+}
+// EchoRequest is the request for echo.
+message EchoRequest {
+    int64 timestamp = 1;
+}
+// EchoResponse is the response for echo.
+message EchoResponse {
+    int64 timestamp = 1;
+}
+// Close - empty close message.
+message Close {}
+
+//Used by monitoring clients if they want to be monitored by grpc
+service MonitoringClient {
+ rpc UnaryEcho(EchoRequest) returns (EchoResponse) {}
+}
+service ConfigServer {
+    rpc CreateStream(Connect) returns (stream MonitoringObject);
+}
+service Stats {
+    rpc RecordStats(stream StatsObject) returns (Close);
+}
