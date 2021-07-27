@@ -16,7 +16,7 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 	done := make(chan bool, 2)
 	var waitGroup sync.WaitGroup
 	var stream proto.Stats_RecordStatsClient
-	c.Logging.Infof("resolver:%v: start with values:%v", resolvedest.Object.GetResolvedest())
+	c.Logging.Infof("resolver:%v: start with values:%v", resolvedest.Object.GetResolvedest(), resolvedest.Object)
 	go func() {
 		defer waitGroup.Done()
 		waitGroup.Add(1)
