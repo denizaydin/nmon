@@ -32,12 +32,12 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 					continue
 				}
 				lastStatTime = stat.GetTimestamp()
-				c.Logging.Tracef("resolver:%v received stats:%v for resolve destination:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
 				if !c.IsStatsClientConnected {
 					time.Sleep(1 * time.Second)
 					c.Logging.Tracef("resolver:%v: stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
 					continue
 				}
+				c.Logging.Tracef("resolver:%v received stats:%v for resolve destination:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
 				var streamerr error
 				stream, streamerr = c.StatsConnClient.RecordStats(context.Background())
 				if streamerr != nil {
@@ -77,10 +77,11 @@ loop:
 				log.Tracef("resolver:%v: sending req to resolver:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer())
 				ips, err := r.LookupHost(context.Background(), resolvedest.Object.GetResolvedest().GetDestination())
 				diff := int64(-1)
+				resolvedip := "unresolved"
 				if err == nil {
 					diff = time.Now().Sub(st).Milliseconds()
 					log.Debugf("resolver:%v: received response:%v from resolver:%v in:%v", resolvedest.Object.GetResolvedest().GetDestination(), ips[0], resolvedest.Object.GetResolvedest().ResolveServer, diff)
-
+					resolvedip = ips[0]
 				} else {
 					log.Debugf("resolver:%v: no reponse received from resolver:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer(), err)
 				}
@@ -91,7 +92,7 @@ loop:
 						Resolvestat: &proto.ResolveStat{
 							Destination: resolvedest.Object.GetResolvedest().GetDestination(),
 							Rtt:         int32(diff),
-							Resolvedip:  ips[0],
+							Resolvedip:  resolvedip,
 							Resolver:    resolvedest.Object.GetResolvedest().GetResolveServer(),
 						},
 					},
@@ -102,9 +103,11 @@ loop:
 				log.Tracef("resolver:%v: sending req to resolver:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer())
 				ips, err := net.LookupHost(resolvedest.Object.GetResolvedest().GetDestination())
 				diff := int64(-1)
+				resolvedip := "unresolved"
 				if err == nil {
 					diff = time.Now().Sub(st).Milliseconds()
 					log.Debugf("resolver:%v: received response:%v from resolver:%v in:%v", resolvedest.Object.GetResolvedest().GetDestination(), ips[0], resolvedest.Object.GetResolvedest().GetResolveServer(), diff)
+					resolvedip = ips[0]
 				} else {
 					log.Debugf("resolver:%v: no reponse received from resolver:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer(), err)
 				}
@@ -115,6 +118,7 @@ loop:
 						Resolvestat: &proto.ResolveStat{
 							Destination: resolvedest.Object.GetResolvedest().GetDestination(),
 							Rtt:         int32(diff),
+							Resolvedip:  resolvedip,
 							Resolver:    "localhost",
 						},
 					},

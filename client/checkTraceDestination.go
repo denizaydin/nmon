@@ -14,7 +14,7 @@ import (
 
 func CheckTraceDestination(tracedest *MonObject, c *NmonClient) {
 	log := c.Logging
-	c.Logging.Infof("tracer:%v starting with initial values:%v", tracedest.Object.GetTracedest(),tracedest.Object)
+	c.Logging.Infof("tracer:%v starting with initial values:%v", tracedest.Object.GetTracedest(), tracedest.Object)
 	options := traceroute.TracerouteOptions{}
 	options.SetRetries(1)
 	options.SetMaxHops(20)

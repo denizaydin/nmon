@@ -344,28 +344,40 @@ func getData(s *Server) {
 		viper.UnmarshalKey("resolvedests", &resolvedestinations)
 
 		for pingDest := range pingdestinations {
-			newmonitoringObjects[pingDest] = &proto.MonitoringObject{
+			newmonitoringObjects[pingDest+"-ping"] = &proto.MonitoringObject{
 				Object: &proto.MonitoringObject_Pingdest{
 					Pingdest: pingdestinations[pingDest],
 				},
 			}
+			if pingdestinations[pingDest].Timeout <= 0 && (pingdestinations[pingDest].Timeout < 3*10000000*pingdestinations[pingDest].Interval) {
+				server.Logging.Warnf("changing pingdest:%v timeout value to 3 times interval:%v value", pingdestinations[pingDest].Timeout, pingdestinations[pingDest].Interval)
+				newmonitoringObjects[pingDest+"-ping"].GetPingdest().Timeout = 3 * pingdestinations[pingDest].Interval * 10000000
+			}
 		}
 		for traceDest := range tracedestinations {
-			newmonitoringObjects[traceDest] = &proto.MonitoringObject{
+			newmonitoringObjects[traceDest+"-trace"] = &proto.MonitoringObject{
 				Object: &proto.MonitoringObject_Tracedest{
 					Tracedest: tracedestinations[traceDest],
 				},
 			}
+			if tracedestinations[traceDest].Timeout <= 0 && (tracedestinations[traceDest].Timeout < 3*10000000*tracedestinations[traceDest].Interval) {
+				server.Logging.Warnf("changing tracedest:%v timeout value to 3 times interval:%v value", tracedestinations[traceDest].Timeout, tracedestinations[traceDest].Interval)
+				newmonitoringObjects[traceDest+"-trace"].GetTracedest().Timeout = 3 * tracedestinations[traceDest].Interval * 10000000
+			}
 		}
 		for resolveDest := range resolvedestinations {
-			newmonitoringObjects[resolveDest] = &proto.MonitoringObject{
+			newmonitoringObjects[resolveDest+"-resolve"] = &proto.MonitoringObject{
 				Object: &proto.MonitoringObject_Resolvedest{
 					Resolvedest: resolvedestinations[resolveDest],
 				},
 			}
+			if resolvedestinations[resolveDest].Timeout <= 0 && (resolvedestinations[resolveDest].Timeout < 3*10000000*resolvedestinations[resolveDest].Interval) {
+				server.Logging.Warnf("changing resolveDest:%v timeout value to 3 times interval:%v value", resolvedestinations[resolveDest].Timeout, resolvedestinations[resolveDest].Interval)
+				newmonitoringObjects[resolveDest+"-resolve"].GetResolvedest().Timeout = 3 * resolvedestinations[resolveDest].Interval * 10000000
+			}
 		}
 		server.MonitorObjects = newmonitoringObjects
-		server.Logging.Tracef("changed configuration data to %v", monitoringObjects)
+		server.Logging.Tracef("changed configuration data to %v", newmonitoringObjects)
 	})
 	server.Logging.Infof("using config: %s\n", viper.ConfigFileUsed())
 	if err := viper.ReadInConfig(); err != nil {
@@ -375,37 +387,36 @@ func getData(s *Server) {
 	viper.UnmarshalKey("tracedests", &tracedestinations)
 	viper.UnmarshalKey("resolvedests", &resolvedestinations)
 	for pingDest := range pingdestinations {
-
-		monitoringObjects[pingDest] = &proto.MonitoringObject{
+		monitoringObjects[pingDest+"-ping"] = &proto.MonitoringObject{
 			Object: &proto.MonitoringObject_Pingdest{
 				Pingdest: pingdestinations[pingDest],
 			},
 		}
 		if pingdestinations[pingDest].Timeout <= 0 && (pingdestinations[pingDest].Timeout < 3*10000000*pingdestinations[pingDest].Interval) {
 			server.Logging.Warnf("changing pingdest:%v timeout value to 3 times interval:%v value", pingdestinations[pingDest].Timeout, pingdestinations[pingDest].Interval)
-			monitoringObjects[pingDest].GetPingdest().Timeout = 3 * pingdestinations[pingDest].Interval * 10000000
+			monitoringObjects[pingDest+"-ping"].GetPingdest().Timeout = 3 * pingdestinations[pingDest].Interval * 10000000
 		}
 
 	}
 	for traceDest := range tracedestinations {
-		monitoringObjects[traceDest] = &proto.MonitoringObject{
+		monitoringObjects[traceDest+"-trace"] = &proto.MonitoringObject{
 			Updatetime: 0,
 			Object:     &proto.MonitoringObject_Tracedest{Tracedest: tracedestinations[traceDest]},
 		}
 		if tracedestinations[traceDest].Timeout <= 0 && (tracedestinations[traceDest].Timeout < 3*10000000*tracedestinations[traceDest].Interval) {
 			server.Logging.Warnf("changing tracedest:%v timeout value to 3 times interval:%v value", tracedestinations[traceDest].Timeout, tracedestinations[traceDest].Interval)
-			monitoringObjects[traceDest].GetTracedest().Timeout = 3 * tracedestinations[traceDest].Interval * 10000000
+			monitoringObjects[traceDest+"-trace"].GetTracedest().Timeout = 3 * tracedestinations[traceDest].Interval * 10000000
 		}
 	}
 	for resolveDest := range resolvedestinations {
-		monitoringObjects[resolveDest] = &proto.MonitoringObject{
+		monitoringObjects[resolveDest+"-resolve"] = &proto.MonitoringObject{
 			Object: &proto.MonitoringObject_Resolvedest{
 				Resolvedest: resolvedestinations[resolveDest],
 			},
 		}
 		if resolvedestinations[resolveDest].Timeout <= 0 && (resolvedestinations[resolveDest].Timeout < 3*10000000*resolvedestinations[resolveDest].Interval) {
 			server.Logging.Warnf("changing resolveDest:%v timeout value to 3 times interval:%v value", resolvedestinations[resolveDest].Timeout, resolvedestinations[resolveDest].Interval)
-			monitoringObjects[resolveDest].GetResolvedest().Timeout = 3 * resolvedestinations[resolveDest].Interval * 10000000
+			monitoringObjects[resolveDest+"-resolve"].GetResolvedest().Timeout = 3 * resolvedestinations[resolveDest].Interval * 10000000
 		}
 	}
 	server.Logging.Tracef("returning configuration data %v", monitoringObjects)

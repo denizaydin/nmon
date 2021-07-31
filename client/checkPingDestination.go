@@ -51,12 +51,12 @@ func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 					continue
 				}
 				lastStatTime = stat.GetTimestamp()
-				c.Logging.Tracef("pinger:received stats:%v for ping destination:%v", stat, pingdest.Object.GetPingdest().GetDestination())
 				if !c.IsStatsClientConnected {
 					time.Sleep(1 * time.Second)
 					c.Logging.Tracef("pinger:stats server is not ready, skipping")
 					continue
 				}
+				c.Logging.Tracef("pinger:received stats:%v for ping destination:%v", stat, pingdest.Object.GetPingdest().GetDestination())
 				stream, err := c.StatsConnClient.RecordStats(context.Background())
 				if err != nil {
 					c.Logging.Errorf("pinger:grpc stream failed while sending stats:%v", err)
@@ -72,7 +72,6 @@ func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 			}
 		}
 	}()
-
 	pinger.OnRecv = func(pkt *ping.Packet) {
 		stat := &proto.StatsObject{
 			Client:    c.StatsClient,

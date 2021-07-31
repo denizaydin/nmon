@@ -1,6 +1,6 @@
 {
     "pingdests": {
-        "www.cisco.com-ping":
+        "www.cisco.com":
                 {
                 "destination" : "www.cisco.com",
                 "timeout": "3",
@@ -9,85 +9,78 @@
                 "groups": {
                     "default" : "default"
                 }
-                }
-    },
-    "resolvedests": {
-        "www.trendyol.com-resolve":
+                },
+        "www.trendyol.com":
                 {
                 "destination" : "www.trendyol.com",
                 "timeout": "3",
-                "interval": 60000,
-                "resolveServer": "8.8.8.8:53",
+                "packetSize": 1000,
+                "interval": 3000,
                 "groups": {
                     "default" : "default"
                 }
                 }
+                ,
+        "mars-dc-lb-vip":
+                        {
+                        "destination" : "89.32.124.100",
+                        "timeout": "3",
+                        "packetSize": 1000,
+                        "interval": 3000,
+                        "groups": {
+                            "default" : "default"
+                        }
+                        }
+    },
+    "resolvedests": {
+        "www.trendyol.com-fromGoogleDNS":
+                {
+                "destination" : "www.trendyol.com",
+                "timeout": "3",
+                "interval": 3000,
+                "resolveServer": "8.8.8.8:53",
+                "groups": {
+                    "default" : "default"
+                }
+                },
+        "www.trendyol.com-fromCFDNS":
+                {
+                "destination" : "www.trendyol.com",
+                "timeout": "3",
+                "interval": 3000,
+                "resolveServer": "1.1.1.1:53",
+                "groups": {
+                    "default" : "default"
+                }
+                },
+        "www.trendyol.com-usingLocal":
+                        {
+                        "destination" : "www.trendyol.com",
+                        "timeout": "3",
+                        "interval": 3000,
+                        "groups": {
+                            "default" : "default"
+                        }
+                        }
     },
     "tracedests": {
-        "www.trendyol.com-trace":
+        "www.trendyol.com":
                 {
                 "destination" : "www.trendyol.com",
                 "timeout": "3",
                 "interval": 60000,
-                "resolveServer": "8.8.8.8:53",
+                "groups": {
+                    "default" : "default"
+                }
+                },
+        "mars-lb-vip":
+                {
+                "destination" : "89.32.124.100",
+                "timeout": "3",
+                "interval": 60000,
                 "groups": {
                     "default" : "default"
                 }
                 }
     }
-}
-
-
-
-
-
-
-//Package client - includes all required monitoring objects for the client
-package client
-
-import (
-	"fmt"
-	"net"
-
-	"github.com/aeden/traceroute"
-)
-
-func CheckTraceDestination(tracedest *MonObject, c *NmonClient) {
-	log := c.Logging
-
-	c.Logging.Infof("tracer:%v: start with values:%v", tracedest.Object.GetTracedest())
-
-	options := traceroute.TracerouteOptions{}
-	options.SetRetries(1)
-	options.SetMaxHops(20)
-	options.SetFirstHop(1) // Start from the default gw
-	ipAddr, err := net.ResolveIPAddr("ip", tracedest.Object.GetTracedest().GetDestination())
-	if err != nil {
-		log.Errorf("tracer: resolve error for tracedest:%v", err, tracedest.Object.GetTracedest().GetDestination())
-	}
-	log.Infof("tracer:starting %v (%v), %v hops max, %v byte packets\n", tracedest.Object.GetTracedest().GetDestination(), ipAddr, options.MaxHops(), options.PacketSize())
-	ch := make(chan traceroute.TracerouteHop, 0)
-	go func() {
-		for {
-			hop, ok := <-ch
-			if !ok {
-				log.Tracef("resolver:%v: is the end stop", tracedest.Object.GetTracedest().GetDestination())
-				return
-			}
-			addr := fmt.Sprintf("%v.%v.%v.%v", hop.Address[0], hop.Address[1], hop.Address[2], hop.Address[3])
-			hostOrAddr := addr
-			if hop.Host != "" {
-				hostOrAddr = hop.Host
-			}
-			if hop.Success {
-				log.Tracef("%-3d %v (%v)  %v\n", hop.TTL, hostOrAddr, addr, hop.ElapsedTime)
-			} else {
-				log.Tracef("%-3d *\n", hop.TTL)
-			}
-		}
-	}()
-	_, err = traceroute.Traceroute(host, &options, c)
-	if err != nil {
-		fmt.Printf("\nNeden err Error: \n", err)
-	}
 }
