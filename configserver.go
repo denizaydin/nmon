@@ -431,7 +431,7 @@ func main() {
 	signal.Notify(sigs)
 	go func() {
 		s := <-sigs
-		statsserver.Logging.Infof("received signal from os:%s", s)
+		server.Logging.Infof("received signal from os:%s", s)
 		os.Exit(1)
 	}()
 
