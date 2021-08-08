@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
 	proto "dnzydn.com/nmon/api"
@@ -356,6 +357,15 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 
 func main() {
 	statsserver.Logging.Infof("server is initialized with parameters:%v", statsserver)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs)
+	go func() {
+		s := <-sigs
+		statsserver.Logging.Infof("received signal from os:%s", s)
+		os.Exit(1)
+	}()
+
 	go func() {
 		statsserver.Logging.Infof("prometheus server is initialized with parameters:%+v", statsserver.PromMetricServerAddr)
 		reg := prometheus.NewPedanticRegistry()

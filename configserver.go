@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"time"
 
 	api "dnzydn.com/nmon/api"
@@ -425,6 +426,15 @@ func getData(s *Server) {
 }
 func main() {
 	server.Logging.Infof("server is initialized with parameters:%+v", server)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs)
+	go func() {
+		s := <-sigs
+		statsserver.Logging.Infof("received signal from os:%s", s)
+		os.Exit(1)
+	}()
+
 	go getData(server)
 	grpcServer := grpc.NewServer(grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 		MinTime:             5 * time.Second, // If a client pings more than once every 5 seconds, terminate the connection
