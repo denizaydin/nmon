@@ -1,10 +1,74 @@
 {
+    "pingdests": {
+        "www.cisco.com":
+                {
+                "destination" : "www.cisco.com",
+                "timeout": "3",
+                "packetSize": 1000,
+                "interval": 3000,
+                "groups": {
+                    "default" : "default"
+                }
+                },
+        "www.trendyol.com":
+                {
+                "destination" : "www.trendyol.com",
+                "timeout": "3",
+                "packetSize": 1000,
+                "interval": 3000,
+                "groups": {
+                    "default" : "default"
+                }
+                }
+                ,
+        "mars-dc-lb-vip":
+                        {
+                        "destination" : "89.32.124.100",
+                        "timeout": "3",
+                        "packetSize": 1000,
+                        "interval": 3000,
+                        "groups": {
+                            "default" : "default"
+                        }
+                        }
+    },
+    "resolvedests": {
+        "www.trendyol.com-fromGoogleDNS":
+                {
+                "destination" : "www.trendyol.com",
+                "timeout": "3",
+                "interval": 3000,
+                "resolveServer": "8.8.8.8:53",
+                "groups": {
+                    "default" : "default"
+                }
+                },
+        "www.trendyol.com-fromCFDNS":
+                {
+                "destination" : "www.trendyol.com",
+                "timeout": "3",
+                "interval": 3000,
+                "resolveServer": "1.1.1.1:53",
+                "groups": {
+                    "default" : "default"
+                }
+                },
+        "www.trendyol.com-usingLocal":
+                        {
+                        "destination" : "www.trendyol.com",
+                        "timeout": "3",
+                        "interval": 3000,
+                        "groups": {
+                            "default" : "default"
+                        }
+                        }
+    },
     "tracedests": {
         "www.trendyol.com":
                 {
                 "destination" : "www.trendyol.com",
                 "timeout": "3",
-                "interval": 3000,
+                "interval": 60000,
                 "groups": {
                     "default" : "default"
                 }
@@ -13,7 +77,7 @@
                 {
                 "destination" : "89.32.124.100",
                 "timeout": "3",
-                "interval": 3000,
+                "interval": 60000,
                 "groups": {
                     "default" : "default"
                 }

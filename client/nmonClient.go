@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	proto "dnzydn.com/nmon/api"
+	proto "github.com/denizaydin/nmon/api"
 	"github.com/sirupsen/logrus"
 )
 

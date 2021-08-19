@@ -22,7 +22,7 @@ import (
 	"os/signal"
 	"time"
 
-	proto "dnzydn.com/nmon/api"
+	proto "github.com/denizaydin/nmon/api"
 	ripe "github.com/mehrdadrad/mylg/ripe"
 
 	"github.com/prometheus/client_golang/prometheus"

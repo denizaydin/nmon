@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"time"
 
-	api "dnzydn.com/nmon/api"
-	proto "dnzydn.com/nmon/api"
-	"dnzydn.com/nmon/configserver"
+	api "github.com/denizaydin/nmon/api"
+	proto "github.com/denizaydin/nmon/api"
+	"github.com/denizaydin/nmon/configserver"
 	"github.com/fsnotify/fsnotify"
 	logrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -55,17 +55,19 @@ type Server struct {
 	Connections map[string]*ClientConnection
 	//Client update time. Current monitoring object will be sent to the clients at this period.
 	//We do not any special message to client to remove deleted ones. Client supposed to watch this data and kill the monitoring if its not updated within maxruntime variable of monitoring object.
-	ClientUpdateRefreshTime int
-	Logging                 *logrus.Logger
+	ClientUpdateTime int
+	//Data file path
+	DataFile string
+	Logging  *logrus.Logger
 }
 
 func init() {
 	//Create new server instance
 	server = &Server{
-		MonitorObjects:          map[string]*proto.MonitoringObject{},
-		Connections:             map[string]*ClientConnection{},
-		ClientUpdateRefreshTime: updateTime,
-		Logging:                 &logrus.Logger{},
+		MonitorObjects:   map[string]*proto.MonitoringObject{},
+		Connections:      map[string]*ClientConnection{},
+		ClientUpdateTime: updateTime,
+		Logging:          &logrus.Logger{},
 	}
 	server.MonitorObjects = make(map[string]*proto.MonitoringObject)
 	server.Logging = logrus.New()
@@ -83,7 +85,9 @@ func init() {
 	flag.StringVar(&logLevel, "loglevel", "info", "info, error, warning,debug or trace")
 	flag.StringVar(&srvNetAddr, "ipaddr", "127.0.0.0", "Server Net Address")
 	flag.IntVar(&srvNetPort, "port", 8080, "Server Net Port")
-	flag.IntVar(&server.ClientUpdateRefreshTime, "updatetime", 5, "configuration update time in seconds, use lower values for better results as we are using grpc streaming")
+	flag.IntVar(&server.ClientUpdateTime, "updatetime", 5, "configuration update time in seconds, use lower values for better results as we are using grpc streaming")
+	flag.StringVar(&server.DataFile, "datafile", "dataConfig.json", "monitoring objects data file as json")
+
 	flag.Parse()
 	switch logLevel {
 	case "info":
@@ -135,12 +139,12 @@ func (s *Server) CreateStream(pconn *api.Connect, stream api.ConfigServer_Create
 func removeLongDeadClients(s *Server) {
 	go func() {
 		for {
-			time.Sleep(4 * time.Duration(s.ClientUpdateRefreshTime) * time.Second)
-			s.Logging.Debug("checking for connections which are not active more than 4 times update period:%v", s.ClientUpdateRefreshTime)
+			time.Sleep(4 * time.Duration(s.ClientUpdateTime) * time.Second)
+			s.Logging.Debug("checking for connections which are not active more than 4 times update period:%v", s.ClientUpdateTime)
 			for key, conn := range s.Connections {
 				if conn.active == false {
 					server.Logging.Infof("found inactive client:%v, last active time:%v and our time:%v", key, time.Unix(0, conn.lastactivetime), time.Now())
-					if time.Now().UnixNano()-conn.lastactivetime > int64(time.Duration(4*s.ClientUpdateRefreshTime*int(time.Second))) {
+					if time.Now().UnixNano()-conn.lastactivetime > int64(time.Duration(4*s.ClientUpdateTime*int(time.Second))) {
 						delete(s.Connections, key)
 						server.Logging.Infof("found inactive client:%v, removed from connection list", conn.client)
 					}
@@ -190,7 +194,7 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 						Object: &proto.MonitoringObject_Pingdest{
 							Pingdest: &proto.PingDest{
 								Destination: clientIP,
-								Timeout:     int32(3 * s.ClientUpdateRefreshTime),
+								Timeout:     int32(3 * s.ClientUpdateTime),
 								Interval:    1000000000,
 								PacketSize:  9000,
 								Groups:      map[string]string{},
@@ -219,13 +223,13 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 				}
 				return false
 			}(monObject.GetPingdest().Groups, updateClient.client.Groups) {
-				s.Logging.Debugf("checking ping Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateRefreshTime))
+				s.Logging.Debugf("checking ping Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateTime))
 				update[key] = &proto.MonitoringObject{
 					Updatetime: time.Now().UnixNano(),
 					Object: &proto.MonitoringObject_Pingdest{
 						Pingdest: &proto.PingDest{
 							Destination: monObject.GetPingdest().Destination,
-							Timeout:     int32(3 * s.ClientUpdateRefreshTime),
+							Timeout:     int32(3 * s.ClientUpdateTime),
 							Interval:    monObject.GetPingdest().Interval,
 							PacketSize:  monObject.GetPingdest().PacketSize,
 						},
@@ -246,13 +250,13 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 				}
 				return false
 			}(monObject.GetResolvedest().Groups, updateClient.client.Groups) {
-				s.Logging.Debugf("checking resolve Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateRefreshTime))
+				s.Logging.Debugf("checking resolve Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateTime))
 				update[key] = &proto.MonitoringObject{
 					Updatetime: time.Now().UnixNano(),
 					Object: &proto.MonitoringObject_Resolvedest{
 						Resolvedest: &proto.ResolveDest{
 							Destination:   monObject.GetResolvedest().Destination,
-							Timeout:       int32(3 * s.ClientUpdateRefreshTime),
+							Timeout:       int32(3 * s.ClientUpdateTime),
 							Interval:      monObject.GetResolvedest().Interval,
 							ResolveServer: monObject.GetResolvedest().ResolveServer,
 						},
@@ -273,13 +277,13 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 				}
 				return false
 			}(monObject.GetTracedest().Groups, updateClient.client.Groups) {
-				s.Logging.Debugf("checking resolve Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateRefreshTime))
+				s.Logging.Debugf("checking resolve Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateTime))
 				update[key] = &proto.MonitoringObject{
 					Updatetime: time.Now().UnixNano(),
 					Object: &proto.MonitoringObject_Tracedest{
 						Tracedest: &proto.TraceDest{
 							Destination: monObject.GetTracedest().Destination,
-							Timeout:     int32(3 * s.ClientUpdateRefreshTime),
+							Timeout:     int32(3 * s.ClientUpdateTime),
 							Interval:    monObject.GetTracedest().Interval,
 						},
 					},
@@ -294,7 +298,7 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 
 //broadcastData - Broadcasts configuration data to the connected clients
 func broadcastData(s *Server) {
-	ticker := time.NewTicker(time.Duration(s.ClientUpdateRefreshTime) * time.Second)
+	ticker := time.NewTicker(time.Duration(s.ClientUpdateTime) * time.Second)
 	go func() {
 		for {
 			select {

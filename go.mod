@@ -1,4 +1,4 @@
-module dnzydn.com/nmon
+module github.com/denizaydin/nmon
 
 go 1.16
 

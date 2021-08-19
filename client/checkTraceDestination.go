@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	proto "dnzydn.com/nmon/api"
 	"github.com/aeden/traceroute"
+	proto "github.com/denizaydin/nmon/api"
 )
 
 func CheckTraceDestination(tracedest *MonObject, c *NmonClient) {

@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	proto "dnzydn.com/nmon/api"
-	nmonclient "dnzydn.com/nmon/client"
+	proto "github.com/denizaydin/nmon/api"
+	nmonclient "github.com/denizaydin/nmon/client"
 	logrus "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"

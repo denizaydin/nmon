@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	proto "dnzydn.com/nmon/api"
+	proto "github.com/denizaydin/nmon/api"
 	"github.com/denizaydin/ping"
 )
 
