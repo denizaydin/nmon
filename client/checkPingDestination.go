@@ -14,11 +14,11 @@ import (
 func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 	log := c.Logging
 	pinger, err := ping.NewPinger(pingdest.Object.GetPingdest().Destination)
-	c.Logging.Infof("pinger:%v: start with values:%v", pingdest.Object.GetPingdest().GetDestination, pingdest.Object.GetPingdest())
+	c.Logging.Infof("pinger:%v start with values:%v", pingdest.Object.GetPingdest().GetDestination(), pingdest.Object.GetPingdest())
 	done := make(chan bool, 2)
 	var waitGroup sync.WaitGroup
 	if err != nil {
-		log.Errorf("pinger:%v, can not created pinger, err:%v", pingdest.Object.GetPingdest().GetDestination, err.Error())
+		log.Errorf("pinger:%v, can not created pinger, err:%v", pingdest.Object.GetPingdest().GetDestination(), err.Error())
 		return
 	}
 	pinger.SetLogger(log)
@@ -97,9 +97,11 @@ func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 	}
 	//pinger.Size = &packetsize
 	pinger.Interval = &pingdest.Object.GetPingdest().Interval
-	log.Infof("pinger:pinging to target host:%s with size %s and interval %s", pingdest.Object.GetPingdest(), packetsize, pingdest.Object.GetPingdest().Interval)
+	log.Infof("pinger:pinging to target host:%s with size %s and interval %s", pingdest.Object.GetPingdest().GetDestination(), packetsize, pingdest.Object.GetPingdest().Interval)
 	err = pinger.Run()
 	if err != nil {
-		log.Errorf("pinger:failed start ping to target host:%s", err)
+		log.Errorf("pinger:failed start ping to target host:%s, err:%s", pingdest.Object.GetPingdest().GetDestination(), err)
 	}
+	log.Infof("pinger:returning pinging to target host:%s with size %s and interval %s", pingdest.Object.GetPingdest().GetDestination(), packetsize, pingdest.Object.GetPingdest().Interval)
+
 }
