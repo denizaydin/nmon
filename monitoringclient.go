@@ -7,8 +7,10 @@ import (
 	"flag"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	proto "github.com/denizaydin/nmon/api"
@@ -296,8 +298,20 @@ func main() {
 	client.Logging.Infof("client is initialized with parameters:%v", client)
 	go getMonitoringObjects(client)
 	go connectStatsServer(client)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs)
+	go func() {
+		s := <-sigs
+		switch s {
+		case syscall.SIGURG:
+			client.Logging.Infof("received unhandled %v signal from os:", s)
+		default:
+			client.Logging.Infof("received %v signal from os,exiting", s)
+			os.Exit(1)
+		}
+	}()
 	client.Run()
-	//go nmonclient.CheckMonitorObjects(client)
 	client.WaitGroup.Add(1)
 	go func() {
 		defer client.WaitGroup.Done()

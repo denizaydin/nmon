@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	api "github.com/denizaydin/nmon/api"
@@ -433,18 +435,18 @@ func getData(s *Server) {
 func main() {
 	server.Logging.Infof("server is initialized with parameters:%+v", server)
 
-	/* 	sigs := make(chan os.Signal, 1)
-	   	signal.Notify(sigs)
-	   	go func() {
-	   		s := <-sigs
-	   		switch s {
-	   		case syscall.SIGURG:
-	   			server.Logging.Infof("received unhandled %v signal from os:", s)
-	   		default:
-	   			server.Logging.Infof("received %v signal from os,exiting", s)
-	   			os.Exit(1)
-	   		}
-	   	}() */
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs)
+	go func() {
+		s := <-sigs
+		switch s {
+		case syscall.SIGURG:
+			server.Logging.Infof("received unhandled %v signal from os:", s)
+		default:
+			server.Logging.Infof("received %v signal from os,exiting", s)
+			os.Exit(1)
+		}
+	}()
 
 	go getData(server)
 	grpcServer := grpc.NewServer(grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{

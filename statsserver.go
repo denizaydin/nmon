@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	proto "github.com/denizaydin/nmon/api"
@@ -362,8 +363,13 @@ func main() {
 	signal.Notify(sigs)
 	go func() {
 		s := <-sigs
-		statsserver.Logging.Infof("received signal from os:%s", s)
-		os.Exit(1)
+		switch s {
+		case syscall.SIGURG:
+			statsserver.Logging.Infof("received unhandled %v signal from os:", s)
+		default:
+			statsserver.Logging.Infof("received %v signal from os,exiting", s)
+			os.Exit(1)
+		}
 	}()
 
 	go func() {
