@@ -97,6 +97,7 @@ func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 	}
 	//pinger.Size = &packetsize
 	pinger.Interval = &pingdest.Object.GetPingdest().Interval
+	pinger.SetPrivileged(true)
 	log.Infof("pinger:pinging to target host:%s with size %s and interval %s", pingdest.Object.GetPingdest().GetDestination(), packetsize, pingdest.Object.GetPingdest().Interval)
 	err = pinger.Run()
 	if err != nil {
