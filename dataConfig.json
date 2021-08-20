@@ -1,15 +1,5 @@
 {
     "pingdests": {
-        "www.cisco.com":
-                {
-                "destination" : "www.cisco.com",
-                "timeout": "3",
-                "packetSize": 1000,
-                "interval": 3000,
-                "groups": {
-                    "default" : "default"
-                }
-                },
         "www.trendyol.com":
                 {
                 "destination" : "www.trendyol.com",

@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	api "github.com/denizaydin/nmon/api"
 	proto "github.com/denizaydin/nmon/api"
-	"github.com/denizaydin/nmon/configserver"
 	"github.com/fsnotify/fsnotify"
 	logrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -57,9 +54,11 @@ type Server struct {
 	//Client update time. Current monitoring object will be sent to the clients at this period.
 	//We do not any special message to client to remove deleted ones. Client supposed to watch this data and kill the monitoring if its not updated within maxruntime variable of monitoring object.
 	ClientUpdateTime int
+	//Data file name
+	DataFileName string
 	//Data file path
-	DataFile string
-	Logging  *logrus.Logger
+	DataFilePath string
+	Logging      *logrus.Logger
 }
 
 func init() {
@@ -87,8 +86,8 @@ func init() {
 	flag.StringVar(&srvNetAddr, "ipaddr", "127.0.0.0", "Server Net Address")
 	flag.IntVar(&srvNetPort, "port", 8080, "Server Net Port")
 	flag.IntVar(&server.ClientUpdateTime, "updatetime", 5, "configuration update time in seconds, use lower values for better results as we are using grpc streaming")
-	flag.StringVar(&server.DataFile, "datafile", "dataConfig.json", "monitoring objects data file as json")
-
+	flag.StringVar(&server.DataFileName, "datafilename", "dataConfig.json", "monitoring objects data file name as json")
+	flag.StringVar(&server.DataFilePath, "datafilepath", ".", "monitoring objects data file path, default is current directory")
 	flag.Parse()
 	switch logLevel {
 	case "info":
@@ -103,9 +102,6 @@ func init() {
 		server.Logging.SetLevel(logrus.TraceLevel)
 	default:
 		server.Logging.SetLevel(logrus.DebugLevel)
-	}
-	if configserver.CheckIPAddress(srvNetAddr) {
-		server.Logging.Fatalf("Invalid ip address:%v", srvNetAddr)
 	}
 }
 
@@ -186,24 +182,20 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 			if conn.client.GetAddAsPingDest() {
 				server.Logging.Infof("cheking client:%v, wants to the monitoried by ping", key, conn.client.Name)
 				clientIP, _, _ := net.SplitHostPort(conn.net)
-				if configserver.CheckIPAddress(clientIP) {
-					server.Logging.Errorf("cheking client:%v, invalid ip address:%v client id:%v, can not add to the monitoring list", key, conn.client.Name, clientIP, conn.client.Id)
-					continue
-				} else {
-					update[conn.client.Id] = &proto.MonitoringObject{
-						Updatetime: time.Now().UnixNano(),
-						Object: &proto.MonitoringObject_Pingdest{
-							Pingdest: &proto.PingDest{
-								Destination: clientIP,
-								Timeout:     int32(3 * s.ClientUpdateTime),
-								Interval:    1000000000,
-								PacketSize:  9000,
-								Groups:      map[string]string{},
-							},
+				update[conn.client.Id] = &proto.MonitoringObject{
+					Updatetime: time.Now().UnixNano(),
+					Object: &proto.MonitoringObject_Pingdest{
+						Pingdest: &proto.PingDest{
+							Destination: clientIP,
+							Timeout:     int32(3 * s.ClientUpdateTime),
+							Interval:    1000000000,
+							PacketSize:  9000,
+							Groups:      map[string]string{},
 						},
-					}
-					server.Logging.Infof("cheking client:%v, added ip address:%v client name:%v id:%v to the monitoring list as a ping destination", key, conn.client.Name, conn.client.Id)
+					},
 				}
+				server.Logging.Infof("cheking client:%v, added ip address:%v client name:%v id:%v to the monitoring list as a ping destination", key, conn.client.Name, conn.client.Id)
+
 			}
 		}
 	}
@@ -326,15 +318,17 @@ func broadcastData(s *Server) {
 		}
 	}()
 }
+
+//getData - retrive configuration data periodically from a file
 func getData(s *Server) {
 	monitoringObjects := make(map[string]*proto.MonitoringObject)
 	pingdestinations := make(map[string]*proto.PingDest)
 	tracedestinations := make(map[string]*proto.TraceDest)
 	resolvedestinations := make(map[string]*proto.ResolveDest)
 	// Set the file name of the configurations file
-	viper.SetConfigName("dataConfig.json")
+	viper.SetConfigName(s.DataFileName)
 	// Set the path to look for the configurations file
-	viper.AddConfigPath("configserver/dataconfig")
+	viper.AddConfigPath(s.DataFilePath)
 	viper.SetConfigType("json")
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
@@ -386,8 +380,15 @@ func getData(s *Server) {
 		server.Logging.Tracef("changed configuration data to %v", newmonitoringObjects)
 	})
 	server.Logging.Infof("using config: %s\n", viper.ConfigFileUsed())
-	if err := viper.ReadInConfig(); err != nil {
-		server.Logging.Errorf("can not read config file, %s", err)
+	for {
+		if err := viper.ReadInConfig(); err != nil {
+			server.Logging.Errorf("can not read config file, retring in 10sec, %s", err)
+			time.Sleep(10 * time.Second)
+		} else {
+			server.Logging.Infof("read config file")
+			break
+		}
+
 	}
 	viper.UnmarshalKey("pingdests", &pingdestinations)
 	viper.UnmarshalKey("tracedests", &tracedestinations)
@@ -432,18 +433,18 @@ func getData(s *Server) {
 func main() {
 	server.Logging.Infof("server is initialized with parameters:%+v", server)
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs)
-	go func() {
-		s := <-sigs
-		switch s {
-		case syscall.SIGURG:
-			server.Logging.Infof("received unhandled %v signal from os:", s)
-		default:
-			server.Logging.Infof("received %v signal from os,exiting", s)
-			os.Exit(1)
-		}
-	}()
+	/* 	sigs := make(chan os.Signal, 1)
+	   	signal.Notify(sigs)
+	   	go func() {
+	   		s := <-sigs
+	   		switch s {
+	   		case syscall.SIGURG:
+	   			server.Logging.Infof("received unhandled %v signal from os:", s)
+	   		default:
+	   			server.Logging.Infof("received %v signal from os,exiting", s)
+	   			os.Exit(1)
+	   		}
+	   	}() */
 
 	go getData(server)
 	grpcServer := grpc.NewServer(grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
