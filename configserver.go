@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -84,7 +85,7 @@ func init() {
 	server.Logging.SetOutput(os.Stdout)
 	// Only log the warning severity or above.
 	logLevel := "info"
-	flag.StringVar(&logLevel, "loglevel", "info", "info, error, warning,debug or trace")
+	flag.StringVar(&logLevel, "loglevel", "disable", "disable,info, error, warning,debug or trace")
 	flag.StringVar(&srvNetAddr, "ipaddr", "127.0.0.0", "Server Net Address")
 	flag.IntVar(&srvNetPort, "port", 8080, "Server Net Port")
 	flag.IntVar(&server.ClientUpdateTime, "updatetime", 5, "configuration update time in seconds, use lower values for better results as we are using grpc streaming")
@@ -92,6 +93,8 @@ func init() {
 	flag.StringVar(&server.DataFilePath, "datafilepath", ".", "monitoring objects data file path, default is current directory")
 	flag.Parse()
 	switch logLevel {
+	case "disable":
+		server.Logging.SetOutput(ioutil.Discard)
 	case "info":
 		server.Logging.SetLevel(logrus.InfoLevel)
 	case "error":

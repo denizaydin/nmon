@@ -232,6 +232,8 @@ func getMonitoringObjects(client *nmonclient.NmonClient) {
 				}
 			}(stream)
 		}
+		client.Logging.Errorf("reading configuration data failed: %v, waiting for 10sec to retry")
+		time.Sleep(10 * time.Second)
 	}
 }
 func connectStatsServer(client *nmonclient.NmonClient) {
@@ -267,7 +269,7 @@ func connectStatsServer(client *nmonclient.NmonClient) {
 			stream, err := client.StatsConnClient.RecordStats(context.Background())
 			if err != nil {
 				//TODO: changling log
-				client.Logging.Errorf("configuration service registration failed:%v, waiting for 10sec to retry", err)
+				client.Logging.Errorf("statistic service registration failed:%v, waiting for 10sec to retry", err)
 				time.Sleep(10 * time.Second)
 				break
 			}
@@ -290,7 +292,8 @@ func connectStatsServer(client *nmonclient.NmonClient) {
 				client.Logging.Infof("sent client stats update to the server, timestamp:%v and number of monitoring objects is:%v", msg.GetTimestamp(), int32(len(client.MonObecjts)))
 				time.Sleep(1 * time.Second)
 			}
-			time.Sleep(1 * time.Second)
+			client.Logging.Errorf("sending client stats data failed: %v, waiting for 10sec to retry")
+			time.Sleep(10 * time.Second)
 		}
 	}
 }

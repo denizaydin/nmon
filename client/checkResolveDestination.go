@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"net"
-	"sync"
 	"time"
 
 	proto "github.com/denizaydin/nmon/api"
@@ -12,56 +11,18 @@ import (
 //CheckResolveDestination - Send DNS Responce queries for the specified object with specified interval.
 func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 	log := c.Logging
-	intstatschannel := make(chan *proto.StatsObject, 100)
-	done := make(chan bool, 2)
-	var waitGroup sync.WaitGroup
 	var stream proto.Stats_RecordStatsClient
 	c.Logging.Infof("resolver:%v: start with values:%v", resolvedest.Object.GetResolvedest(), resolvedest.Object)
-	go func() {
-		defer waitGroup.Done()
-		waitGroup.Add(1)
-		var lastStatTime int64
-		for {
-			select {
-			case <-done:
-				c.Logging.Tracef("resolver:%v: out from stats loop", resolvedest.Object.GetResolvedest().GetDestination())
-				return
-			default:
-				stat := <-intstatschannel
-				if lastStatTime == stat.GetTimestamp() {
-					continue
-				}
-				lastStatTime = stat.GetTimestamp()
-				if !c.IsStatsClientConnected {
-					time.Sleep(1 * time.Second)
-					c.Logging.Tracef("resolver:%v: stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
-					continue
-				}
-				c.Logging.Tracef("resolver:%v received stats:%v for resolve destination:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
-				var streamerr error
-				stream, streamerr = c.StatsConnClient.RecordStats(context.Background())
-				if streamerr != nil {
-					c.Logging.Errorf("resolver:%v: grpc stream failed while sending stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), streamerr)
-					time.Sleep(1 * time.Second)
-					continue
-				}
-				if err := stream.Send(stat); err != nil {
-					c.Logging.Errorf("resolver:%v: can not send client stats:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), stream, err)
-					break
-				}
-				c.Logging.Debugf("resolver:%v: send stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
-
-			}
-		}
-	}()
-loop:
-	for {
+	interval := time.NewTimer(time.Duration(1 * time.Second))
+	log.Debugf("tracer:%v: will start with in 1sec", resolvedest.Object.GetResolvedest().GetDestination())
+	exit := false
+	for !exit {
 		select {
 		case <-resolvedest.Notify:
 			log.Infof("resolver:%v: received stop request", resolvedest.Object.GetResolvedest().GetDestination())
-			close(intstatschannel)
-			break loop // exit
-		default:
+			exit = true
+		case <-interval.C:
+			log.Tracef("resolver:%v: interval which is:%v fired", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
 			if resolvedest.Object.GetResolvedest().ResolveServer != "" {
 				log.Tracef("resolver:%v: starting resolve using resolver:%v ", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().ResolveServer)
 				r := &net.Resolver{
@@ -97,7 +58,22 @@ loop:
 						},
 					},
 				}
-				intstatschannel <- stat
+				if !c.IsStatsClientConnected {
+					c.Logging.Tracef("resolver:%v: stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
+				} else {
+					c.Logging.Tracef("resolver:%v received stats:%v for resolve destination:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
+					var streamerr error
+					stream, streamerr = c.StatsConnClient.RecordStats(context.Background())
+					if streamerr != nil {
+						c.Logging.Errorf("resolver:%v: grpc stream failed while sending stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), streamerr)
+					} else {
+						if err := stream.Send(stat); err != nil {
+							c.Logging.Errorf("resolver:%v: can not send client stats:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), stream, err)
+						} else {
+							c.Logging.Debugf("resolver:%v: send stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
+						}
+					}
+				}
 			} else {
 				st := time.Now()
 				log.Tracef("resolver:%v: sending req to resolver:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer())
@@ -124,15 +100,26 @@ loop:
 					},
 				}
 				log.Tracef("resolver:%v: stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
-				intstatschannel <- stat
+				if !c.IsStatsClientConnected {
+					c.Logging.Tracef("resolver:%v: stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
+				} else {
+					c.Logging.Tracef("resolver:%v received stats:%v for resolve destination:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
+					var streamerr error
+					stream, streamerr = c.StatsConnClient.RecordStats(context.Background())
+					if streamerr != nil {
+						c.Logging.Errorf("resolver:%v: grpc stream failed while sending stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), streamerr)
+					} else {
+						if err := stream.Send(stat); err != nil {
+							c.Logging.Errorf("resolver:%v: can not send client stats:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), stream, err)
+						} else {
+							c.Logging.Debugf("resolver:%v: send stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
+						}
+					}
+				}
 			}
+			log.Tracef("resolver:%v: setting interval to:%v", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
+			interval = time.NewTimer(time.Duration(resolvedest.Object.GetResolvedest().Interval) * time.Millisecond)
 		}
-		log.Tracef("resolver:%v: sleeping for:%v", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
-		time.Sleep(time.Duration(resolvedest.Object.GetResolvedest().Interval) * time.Millisecond)
-		log.Tracef("resolver:%v: waked from sleeping for:%v", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
 	}
-	done <- true
-	waitGroup.Wait()
-	close(done)
-	log.Infof("resolver:%v: stopped", resolvedest.Object.GetResolvedest().GetDestination())
+	log.Infof("resolver:%v exiting", resolvedest.Object.GetResolvedest().GetDestination())
 }

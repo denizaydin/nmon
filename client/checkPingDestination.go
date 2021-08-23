@@ -3,7 +3,6 @@ package client
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	proto "github.com/denizaydin/nmon/api"
@@ -15,63 +14,11 @@ func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 	log := c.Logging
 	pinger, err := ping.NewPinger(pingdest.Object.GetPingdest().Destination)
 	c.Logging.Infof("pinger:%v start with values:%v", pingdest.Object.GetPingdest().GetDestination(), pingdest.Object.GetPingdest())
-	done := make(chan bool, 2)
-	var waitGroup sync.WaitGroup
 	if err != nil {
 		log.Errorf("pinger:%v, can not created pinger, err:%v", pingdest.Object.GetPingdest().GetDestination(), err.Error())
 		return
 	}
 	pinger.SetLogger(log)
-	intstatschannel := make(chan *proto.StatsObject, 100)
-	go func() {
-		for {
-			select {
-			case <-pingdest.Notify:
-				log.Infof("pinger:ping:%v is stopped", pingdest.Object.GetPingdest().GetDestination())
-				pinger.Stop()
-				done <- true
-				waitGroup.Wait()
-				close(done)
-				close(intstatschannel)
-			}
-		}
-	}()
-	go func() {
-		defer waitGroup.Done()
-		waitGroup.Add(1)
-		var lastStatTime int64
-		for {
-			select {
-			case <-done:
-				c.Logging.Tracef("pinger:%v: out from stats loop", pingdest.Object.GetPingdest().GetDestination())
-				return
-			default:
-				stat := <-intstatschannel
-				if lastStatTime == stat.GetTimestamp() {
-					continue
-				}
-				lastStatTime = stat.GetTimestamp()
-				if !c.IsStatsClientConnected {
-					time.Sleep(1 * time.Second)
-					c.Logging.Tracef("pinger:stats server is not ready, skipping")
-					continue
-				}
-				c.Logging.Tracef("pinger:received stats:%v for ping destination:%v", stat, pingdest.Object.GetPingdest().GetDestination())
-				stream, err := c.StatsConnClient.RecordStats(context.Background())
-				if err != nil {
-					c.Logging.Errorf("pinger:grpc stream failed while sending stats:%v", err)
-					time.Sleep(1 * time.Second)
-					continue
-				}
-				if err := stream.Send(stat); err != nil {
-					c.Logging.Errorf("pinger:can not send client stats:%v, err:%v", stream, err)
-					break
-				}
-				c.Logging.Tracef("pinger:sent stats:%v for ping destination:%v", stat, pingdest.Object.GetPingdest().GetDestination())
-
-			}
-		}
-	}()
 	pinger.OnRecv = func(pkt *ping.Packet) {
 		stat := &proto.StatsObject{
 			Client:    c.StatsClient,
@@ -83,7 +30,20 @@ func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 				},
 			},
 		}
-		intstatschannel <- stat
+		if !c.IsStatsClientConnected {
+			c.Logging.Tracef("pinger:stats server is not ready, skipping")
+		} else {
+			c.Logging.Tracef("pinger:received stats:%v for ping destination:%v", stat, pingdest.Object.GetPingdest().GetDestination())
+			stream, err := c.StatsConnClient.RecordStats(context.Background())
+			if err != nil {
+				c.Logging.Errorf("pinger:grpc stream failed while sending stats:%v", err)
+			} else {
+				if err := stream.Send(stat); err != nil {
+					c.Logging.Errorf("pinger:can not send client stats:%v, err:%v", stream, err)
+				}
+				c.Logging.Tracef("pinger:sent stats:%v for ping destination:%v", stat, pingdest.Object.GetPingdest().GetDestination())
+			}
+		}
 		log.Tracef("pinger:ping:%v -> %d bytes from %s: icmp_seq=%d time=%v ttl=%v\n", pingdest.Object.GetPingdest().GetDestination(),
 			pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt, pkt.Ttl)
 	}
@@ -99,10 +59,19 @@ func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 	pinger.Interval = &pingdest.Object.GetPingdest().Interval
 	pinger.SetPrivileged(true)
 	log.Infof("pinger:pinging to target host:%s with size %s and interval %s", pingdest.Object.GetPingdest().GetDestination(), packetsize, pingdest.Object.GetPingdest().Interval)
+	go func() {
+		for {
+			select {
+			case <-pingdest.Notify:
+				log.Infof("pinger:%v is stopped", pingdest.Object.GetPingdest().GetDestination())
+				pinger.Stop()
+			}
+			time.Sleep(time.Duration(pingdest.Object.GetPingdest().Interval) * time.Millisecond)
+		}
+	}()
 	err = pinger.Run()
 	if err != nil {
 		log.Errorf("pinger:failed start ping to target host:%s, err:%s", pingdest.Object.GetPingdest().GetDestination(), err)
 	}
-	log.Infof("pinger:returning pinging to target host:%s with size %s and interval %s", pingdest.Object.GetPingdest().GetDestination(), packetsize, pingdest.Object.GetPingdest().Interval)
-
+	log.Infof("pinger:exiting from pinging to target host:%s with size %s and interval %s", pingdest.Object.GetPingdest().GetDestination(), packetsize, pingdest.Object.GetPingdest().Interval)
 }
