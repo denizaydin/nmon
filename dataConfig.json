@@ -1,3 +1,13 @@
 {
-
+    "pingdests": {
+        "venus-dc-lb-vip": {
+            "destination": "89.42.34.100",
+            "timeout": "3",
+            "packetSize": 1000,
+            "interval": 3000,
+            "groups": {
+                "default": "default"
+            }
+        }
+    }
 }
