@@ -20,16 +20,6 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
-//Flag variables
-//srvNetAddr - Server adress
-var srvNetAddr string
-
-//srvNetPort - Server port
-var srvNetPort int
-
-//updateTime - int
-var updateTime int
-
 //server - configuration server
 var server *Server
 
@@ -50,6 +40,8 @@ type ClientConnection struct {
 
 //Server - Holds varibles of the server
 type Server struct {
+	//ServerAddr - net address
+	ServerAddr string
 	//Current monitoring objects
 	MonitorObjects map[string]*proto.MonitoringObject
 	//Current connected clients
@@ -69,7 +61,7 @@ func init() {
 	server = &Server{
 		MonitorObjects:   map[string]*proto.MonitoringObject{},
 		Connections:      map[string]*ClientConnection{},
-		ClientUpdateTime: updateTime,
+		ClientUpdateTime: 5,
 		Logging:          &logrus.Logger{},
 	}
 	server.MonitorObjects = make(map[string]*proto.MonitoringObject)
@@ -85,9 +77,8 @@ func init() {
 	server.Logging.SetOutput(os.Stdout)
 	// Only log the warning severity or above.
 	logLevel := "info"
-	flag.StringVar(&logLevel, "loglevel", "disable", "disable,info, error, warning,debug or trace")
-	flag.StringVar(&srvNetAddr, "ipaddr", "127.0.0.0", "Server Net Address")
-	flag.IntVar(&srvNetPort, "port", 8080, "Server Net Port")
+	flag.StringVar(&logLevel, "loglevel", "info", "disable,info, error, warning,debug or trace")
+	flag.StringVar(&server.ServerAddr, "addr", "localhost:8081", "server net address")
 	flag.IntVar(&server.ClientUpdateTime, "updatetime", 5, "configuration update time in seconds, use lower values for better results as we are using grpc streaming")
 	flag.StringVar(&server.DataFileName, "datafilename", "dataConfig.json", "monitoring objects data file name as json")
 	flag.StringVar(&server.DataFilePath, "datafilepath", ".", "monitoring objects data file path, default is current directory")
@@ -114,17 +105,17 @@ func init() {
 func (s *Server) CreateStream(pconn *api.Connect, stream api.ConfigServer_CreateStreamServer) error {
 	pr, ok := peer.FromContext(stream.Context())
 	if !ok {
-		server.Logging.Warningf("cannot get client ip address!! %v", pr.Addr)
+		server.Logging.Warningf("configserver: cannot get client ip address!! %v", pr.Addr)
 	}
-	server.Logging.Infof("received client connection request from ip %v", pr.Addr)
+	server.Logging.Debugf("configserver: received client connection request from ip %v", pr.Addr)
 	//Parsing client's ip address
 	clientIP, _, _ := net.SplitHostPort(pr.Addr.String())
 	clientName := pconn.Client.GetName()
 	if clientName == "" {
-		server.Logging.Warnf("client name is empty, using client ip address:%v as its name", clientIP)
-		return fmt.Errorf("client name cannot be empty")
+		server.Logging.Warnf("configserver: client name is empty, using client ip address:%v as its name", clientIP)
+		return fmt.Errorf("configserver: client name cannot be empty")
 	}
-	server.Logging.Infof("registering or updating client:%v, groups:%v  as ping:%v, as trace:%v, as app:%v", pconn.Client.GetName(), pconn.Client.GetGroups(), pconn.Client.GetAddAsPingDest(), pconn.Client.GetAddAsTraceDest(), pconn.Client.GetAddAsAppDest())
+	server.Logging.Infof("configserver: registering or updating client:%v, groups:%v  as ping:%v, as trace:%v, as app:%v", pconn.Client.GetName(), pconn.Client.GetGroups(), pconn.Client.GetAddAsPingDest(), pconn.Client.GetAddAsTraceDest(), pconn.Client.GetAddAsAppDest())
 	// may be reject client requests from the same ip address!
 	s.Connections[clientName] = &ClientConnection{
 		stream:         stream,
@@ -142,10 +133,10 @@ func removeLongDeadClients(s *Server) {
 	go func() {
 		for {
 			time.Sleep(4 * time.Duration(s.ClientUpdateTime) * time.Second)
-			s.Logging.Debug("checking for connections which are not active more than 4 times update period:%v", s.ClientUpdateTime)
+			s.Logging.Debug("configserver: checking for connections which are not active more than 4 times update period:%v", s.ClientUpdateTime)
 			for key, conn := range s.Connections {
 				if conn.active == false {
-					server.Logging.Infof("found inactive client:%v, last active time:%v and our time:%v", key, time.Unix(0, conn.lastactivetime), time.Now())
+					server.Logging.Debugf("configserver: found inactive client:%v, last active time:%v and our time:%v", key, time.Unix(0, conn.lastactivetime), time.Now())
 					if time.Now().UnixNano()-conn.lastactivetime > int64(time.Duration(4*s.ClientUpdateTime*int(time.Second))) {
 						delete(s.Connections, key)
 						server.Logging.Infof("found inactive client:%v, removed from connection list", conn.client)
@@ -159,25 +150,25 @@ func removeLongDeadClients(s *Server) {
 func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*proto.MonitoringObject {
 	var update = make(map[string]*proto.MonitoringObject)
 	for key, conn := range s.Connections {
-		s.Logging.Debugf("checking if client:%v wants to be monitored, as ping:%v, as trace:%v, as app:%v", key, conn.client.GetAddAsPingDest(), conn.client.GetAddAsTraceDest(), conn.client.GetAddAsAppDest())
+		s.Logging.Debugf("configserver: checking if client:%v wants to be monitored, as ping:%v, as trace:%v, as app:%v", key, conn.client.GetAddAsPingDest(), conn.client.GetAddAsTraceDest(), conn.client.GetAddAsAppDest())
 		if conn.client.AddAsAppDest || conn.client.AddAsTraceDest || conn.client.AddAsAppDest {
-			s.Logging.Infof("client:%v wants to be monitored, as ping:%v, as trace:%v, as app:%v", conn.client.GetAddAsPingDest(), conn.client.GetAddAsTraceDest(), conn.client.GetAddAsAppDest())
+			s.Logging.Tracef("configserver: client:%v wants to be monitored, as ping:%v, as trace:%v, as app:%v", conn.client.GetAddAsPingDest(), conn.client.GetAddAsTraceDest(), conn.client.GetAddAsAppDest())
 		}
 		if !conn.active {
-			s.Logging.Debugf("cheking client:%v, conn name:%v is inactive,passing", conn.client.Name)
+			s.Logging.Tracef("configserver: cheking client:%v, conn name:%v is inactive,passing", conn.client.Name)
 			continue
 		}
 		if updateClient.client.Name == conn.client.Name {
-			s.Logging.Debugf("can not send client info to the same client")
+			s.Logging.Tracef("configserver: can not send client info to the same client")
 			continue
 		}
 		//checking if one of the client object groups will match one of clients groups which update will be send
 		if func(g1 map[string]string, g2 map[string]string) bool {
 			for group := range g1 {
 				for updateClientGroup := range g2 {
-					s.Logging.Tracef("cheking client:%v group:%v, update client group:%v", key, group, updateClientGroup)
+					s.Logging.Tracef("configserver: cheking client:%v group:%v, update client group:%v", key, group, updateClientGroup)
 					if group == updateClientGroup {
-						s.Logging.Debugf("cheking client:%v group:%v with, matched update client group:%v", key, group, updateClientGroup)
+						s.Logging.Tracef("configserver: cheking client:%v group:%v with, matched update client group:%v", key, group, updateClientGroup)
 						return true
 					}
 				}
@@ -185,7 +176,7 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 			return false
 		}(conn.client.Groups, updateClient.client.Groups) {
 			if conn.client.GetAddAsPingDest() {
-				server.Logging.Infof("cheking client:%v, wants to the monitoried by ping", key, conn.client.Name)
+				server.Logging.Tracef("configserver: cheking client:%v, wants to the monitoried by ping", key, conn.client.Name)
 				clientIP, _, _ := net.SplitHostPort(conn.net)
 				update[conn.client.Id] = &proto.MonitoringObject{
 					Updatetime: time.Now().UnixNano(),
@@ -199,7 +190,7 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 						},
 					},
 				}
-				server.Logging.Infof("cheking client:%v, added ip address:%v client name:%v id:%v to the monitoring list as a ping destination", key, conn.client.Name, conn.client.Id)
+				server.Logging.Tracef("configserver: cheking client:%v, added ip address:%v client name:%v id:%v to the monitoring list as a ping destination", key, conn.client.Name, conn.client.Id)
 
 			}
 		}
@@ -212,16 +203,16 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 			if func(g1 map[string]string, g2 map[string]string) bool {
 				for group := range g1 {
 					for conngroup := range g2 {
-						s.Logging.Tracef("checking ping Object:%v group with update client group:%v", group, conngroup)
+						s.Logging.Tracef("configserver: checking ping Object:%v group with update client group:%v", group, conngroup)
 						if group == conngroup {
-							s.Logging.Debugf("checking ping Object:%v, matched update client group:%v", group, conngroup)
+							s.Logging.Tracef("configserver: checking ping Object:%v, matched update client group:%v", group, conngroup)
 							return true
 						}
 					}
 				}
 				return false
 			}(monObject.GetPingdest().Groups, updateClient.client.Groups) {
-				s.Logging.Debugf("checking ping Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateTime))
+				s.Logging.Tracef("configserver: checking ping Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateTime))
 				update[key] = &proto.MonitoringObject{
 					Updatetime: time.Now().UnixNano(),
 					Object: &proto.MonitoringObject_Pingdest{
@@ -239,16 +230,16 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 			if func(g1 map[string]string, g2 map[string]string) bool {
 				for group := range g1 {
 					for conngroup := range g2 {
-						s.Logging.Tracef("checking resolve Object:%v group with update client group:%v", group, conngroup)
+						s.Logging.Tracef("configserver: checking resolve Object:%v group with update client group:%v", group, conngroup)
 						if group == conngroup {
-							s.Logging.Debugf("checking resolve Object:%v, matched update client group:%v", group, conngroup)
+							s.Logging.Tracef("configserver: checking resolve Object:%v, matched update client group:%v", group, conngroup)
 							return true
 						}
 					}
 				}
 				return false
 			}(monObject.GetResolvedest().Groups, updateClient.client.Groups) {
-				s.Logging.Debugf("checking resolve Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateTime))
+				s.Logging.Tracef("configserver: checking resolve Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateTime))
 				update[key] = &proto.MonitoringObject{
 					Updatetime: time.Now().UnixNano(),
 					Object: &proto.MonitoringObject_Resolvedest{
@@ -266,16 +257,16 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 			if func(g1 map[string]string, g2 map[string]string) bool {
 				for group := range g1 {
 					for conngroup := range g2 {
-						s.Logging.Tracef("checking trace Object:%v group with update client group:%v", group, conngroup)
+						s.Logging.Tracef("configserver: checking trace Object:%v group with update client group:%v", group, conngroup)
 						if group == conngroup {
-							s.Logging.Debugf("checking trace Object:%v, matched update client group:%v", group, conngroup)
+							s.Logging.Tracef("configserver: checking trace Object:%v, matched update client group:%v", group, conngroup)
 							return true
 						}
 					}
 				}
 				return false
 			}(monObject.GetTracedest().Groups, updateClient.client.Groups) {
-				s.Logging.Debugf("checking resolve Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateTime))
+				s.Logging.Tracef("configserver: checking resolve Object:%v, object timeout to:%v", key, int32(3*s.ClientUpdateTime))
 				update[key] = &proto.MonitoringObject{
 					Updatetime: time.Now().UnixNano(),
 					Object: &proto.MonitoringObject_Tracedest{
@@ -289,7 +280,7 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 			}
 		}
 
-		s.Logging.Infof("update for the monitoring object:%v to the client:%v", update, updateClient.client.GetName())
+		s.Logging.Debugf("configserver: update for the monitoring object:%v to the client:%v", update, updateClient.client.GetName())
 	}
 	return update
 }
@@ -301,10 +292,10 @@ func broadcastData(s *Server) {
 		for {
 			select {
 			case <-ticker.C:
-				s.Logging.Tracef("update time, number of connections for sending update:%v", len(s.Connections))
+				s.Logging.Tracef("configserver: update time, number of connections for sending update:%v", len(s.Connections))
 				//Check the registered clients
 				for _, conn := range s.Connections {
-					s.Logging.Debugf("sending update to the client:%v on net address:%v", conn.client.GetName(), conn.net)
+					s.Logging.Debugf("configserver: sending update to the client:%v on net address:%v", conn.client.GetName(), conn.net)
 					for key, monObject := range calculateUpdate(s, conn) {
 						go func(monObject *proto.MonitoringObject, conn *ClientConnection) {
 							if conn.active {
@@ -314,7 +305,7 @@ func broadcastData(s *Server) {
 									conn.active = false
 									conn.error <- err
 								}
-								s.Logging.Infof("sent monitoring object:%v to the client:%v", key, conn.client.GetName())
+								s.Logging.Infof("configserver: sent update, monitoring object:%v to the client:%v", key, conn.client.GetName())
 							}
 						}(monObject, conn)
 					}
@@ -337,7 +328,7 @@ func getData(s *Server) {
 	viper.SetConfigType("json")
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
-		server.Logging.Println("config file changed:%v", e.Name)
+		server.Logging.Infof("config file changed:%v", e.Name)
 		newmonitoringObjects := make(map[string]*proto.MonitoringObject)
 
 		pingdestinations = make(map[string]*proto.PingDest)
@@ -355,7 +346,7 @@ func getData(s *Server) {
 				},
 			}
 			if pingdestinations[pingDest].Timeout <= 0 && (pingdestinations[pingDest].Timeout < 3*10000000*pingdestinations[pingDest].Interval) {
-				server.Logging.Warnf("changing pingdest:%v timeout value to 3 times interval:%v value", pingdestinations[pingDest].Timeout, pingdestinations[pingDest].Interval)
+				server.Logging.Warnf("configserver: changing pingdest:%v timeout value to 3 times interval:%v value", pingdestinations[pingDest].Timeout, pingdestinations[pingDest].Interval)
 				newmonitoringObjects[pingDest+"-ping"].GetPingdest().Timeout = 3 * pingdestinations[pingDest].Interval * 10000000
 			}
 		}
@@ -366,7 +357,7 @@ func getData(s *Server) {
 				},
 			}
 			if tracedestinations[traceDest].Timeout <= 0 && (tracedestinations[traceDest].Timeout < 3*10000000*tracedestinations[traceDest].Interval) {
-				server.Logging.Warnf("changing tracedest:%v timeout value to 3 times interval:%v value", tracedestinations[traceDest].Timeout, tracedestinations[traceDest].Interval)
+				server.Logging.Warnf("configserver: changing tracedest:%v timeout value to 3 times interval:%v value", tracedestinations[traceDest].Timeout, tracedestinations[traceDest].Interval)
 				newmonitoringObjects[traceDest+"-trace"].GetTracedest().Timeout = 3 * tracedestinations[traceDest].Interval * 10000000
 			}
 		}
@@ -377,23 +368,22 @@ func getData(s *Server) {
 				},
 			}
 			if resolvedestinations[resolveDest].Timeout <= 0 && (resolvedestinations[resolveDest].Timeout < 3*10000000*resolvedestinations[resolveDest].Interval) {
-				server.Logging.Warnf("changing resolveDest:%v timeout value to 3 times interval:%v value", resolvedestinations[resolveDest].Timeout, resolvedestinations[resolveDest].Interval)
+				server.Logging.Warnf("configserver: changing resolveDest:%v timeout value to 3 times interval:%v value", resolvedestinations[resolveDest].Timeout, resolvedestinations[resolveDest].Interval)
 				newmonitoringObjects[resolveDest+"-resolve"].GetResolvedest().Timeout = 3 * resolvedestinations[resolveDest].Interval * 10000000
 			}
 		}
 		server.MonitorObjects = newmonitoringObjects
-		server.Logging.Tracef("changed configuration data to %v", newmonitoringObjects)
+		server.Logging.Debugf("configserver: changed configuration data to %v", newmonitoringObjects)
 	})
-	server.Logging.Infof("using config: %s\n", viper.ConfigFileUsed())
+	server.Logging.Infof("configserver: using config: %s\n", viper.ConfigFileUsed())
 	for {
 		if err := viper.ReadInConfig(); err != nil {
-			server.Logging.Errorf("can not read config file, retring in 10sec, %s", err)
+			server.Logging.Errorf("configserver: can not read config file, retring in 10sec, %s", err)
 			time.Sleep(10 * time.Second)
 		} else {
-			server.Logging.Infof("read config file")
+			server.Logging.Debugf("configserver: read config file")
 			break
 		}
-
 	}
 	viper.UnmarshalKey("pingdests", &pingdestinations)
 	viper.UnmarshalKey("tracedests", &tracedestinations)
@@ -405,10 +395,9 @@ func getData(s *Server) {
 			},
 		}
 		if pingdestinations[pingDest].Timeout <= 0 && (pingdestinations[pingDest].Timeout < 3*10000000*pingdestinations[pingDest].Interval) {
-			server.Logging.Warnf("changing pingdest:%v timeout value to 3 times interval:%v value", pingdestinations[pingDest].Timeout, pingdestinations[pingDest].Interval)
+			server.Logging.Warnf("configserver: changing pingdest:%v timeout value to 3 times interval:%v value", pingdestinations[pingDest].Timeout, pingdestinations[pingDest].Interval)
 			monitoringObjects[pingDest+"-ping"].GetPingdest().Timeout = 3 * pingdestinations[pingDest].Interval * 10000000
 		}
-
 	}
 	for traceDest := range tracedestinations {
 		monitoringObjects[traceDest+"-trace"] = &proto.MonitoringObject{
@@ -416,7 +405,7 @@ func getData(s *Server) {
 			Object:     &proto.MonitoringObject_Tracedest{Tracedest: tracedestinations[traceDest]},
 		}
 		if tracedestinations[traceDest].Timeout <= 0 && (tracedestinations[traceDest].Timeout < 3*10000000*tracedestinations[traceDest].Interval) {
-			server.Logging.Warnf("changing tracedest:%v timeout value to 3 times interval:%v value", tracedestinations[traceDest].Timeout, tracedestinations[traceDest].Interval)
+			server.Logging.Warnf("configserver: changing tracedest:%v timeout value to 3 times interval:%v value", tracedestinations[traceDest].Timeout, tracedestinations[traceDest].Interval)
 			monitoringObjects[traceDest+"-trace"].GetTracedest().Timeout = 3 * tracedestinations[traceDest].Interval * 10000000
 		}
 	}
@@ -427,17 +416,15 @@ func getData(s *Server) {
 			},
 		}
 		if resolvedestinations[resolveDest].Timeout <= 0 && (resolvedestinations[resolveDest].Timeout < 3*10000000*resolvedestinations[resolveDest].Interval) {
-			server.Logging.Warnf("changing resolveDest:%v timeout value to 3 times interval:%v value", resolvedestinations[resolveDest].Timeout, resolvedestinations[resolveDest].Interval)
+			server.Logging.Warnf("configserver: changing resolveDest:%v timeout value to 3 times interval:%v value", resolvedestinations[resolveDest].Timeout, resolvedestinations[resolveDest].Interval)
 			monitoringObjects[resolveDest+"-resolve"].GetResolvedest().Timeout = 3 * resolvedestinations[resolveDest].Interval * 10000000
 		}
 	}
-	server.Logging.Tracef("returning configuration data %v", monitoringObjects)
-
+	server.Logging.Debugf("configserver: returning configuration data %v", monitoringObjects)
 	server.MonitorObjects = monitoringObjects
 }
 func main() {
-	server.Logging.Infof("server is initialized with parameters:%+v", server)
-
+	server.Logging.Infof("configserver: server is initialized with parameters:%+v", server)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs)
 	go func() {
@@ -460,16 +447,16 @@ func main() {
 		Time:              5 * time.Second,  // Ping the client if it is idle for 5 seconds to ensure the connection is still active
 		Timeout:           1 * time.Second,  // Wait 1 second for the ping ack before assuming the connection is dead
 	}))
-	server.Logging.Debugf("got the configuration data:%v", server.MonitorObjects)
-	server.Logging.Debug("starting server at port :8080")
-	listener, err := net.Listen("tcp", ":8080")
+	server.Logging.Debugf("configserver: got the configuration data:%v", server.MonitorObjects)
+	server.Logging.Infof("configserver: starting server at:%v", server.ServerAddr)
+	listener, err := net.Listen("tcp", server.ServerAddr)
 	if err != nil {
-		server.Logging.Fatalf("error creating the server %v", err)
+		server.Logging.Fatalf("configserver: error creating the server %v", err)
 	}
 	go broadcastData(server)
 	go removeLongDeadClients(server)
 	proto.RegisterConfigServerServer(grpcServer, server)
-	server.Logging.Infof("started server at:%v", listener.Addr())
+	server.Logging.Infof("configserver: started server at:%v", listener.Addr())
 	grpcServer.Serve(listener)
 	select {}
 }
