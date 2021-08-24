@@ -323,12 +323,14 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 	}
 	s.Logging.Infof("statsserver: new client stats from ip:%v", pr.Addr)
 	// TODO: for testing purposes from local computer,
-	_, ipnet, neterr := net.ParseCIDR(pr.Addr.String() + "/24")
+	clientip := pr.Addr.String().Split(":")[0]
+	_, ipnet, neterr := net.ParseCIDR(clientip + "/24")
 	ip := pr.Addr.String()
 	if neterr != nil {
 		ip = ipnet.String()
-		s.Logging.Debugf("statsserver: changed client as storage info to:%v", ip)
+		s.Logging.Tracef("statsserver: changed client as storage info to:%v", ip)
 	}
+	s.Logging.Debugf("statsserver: set client as storage info to:%v", ip)
 	if net.ParseIP(ip).IsGlobalUnicast() {
 		s.Logging.Debugf("statsserver: retring client:%v info from ripe", pr.Addr)
 		_, ok = s.IpASN[ip]
