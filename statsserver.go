@@ -323,27 +323,36 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 	}
 	s.Logging.Infof("statsserver: new client stats from ip:%v", pr.Addr)
 	// TODO: for testing purposes from local computer,
-	ip := pr.Addr.String()
-	if net.ParseIP(ip).IsGlobalUnicast() {
-		_, ok = s.IpASN[ip]
-		if !ok {
-			s.IpASN[ip] = 0
-			s.IpHolder[ip] = "unknown"
-			var p ripe.Prefix
-			p.Set(ip)
-			p.GetData()
-			s.Logging.Debugf("statsserver: got the client information from ripe:%v", p)
-			data, _ := p.Data["data"].(map[string]interface{})
-			asns := data["asns"].([]interface{})
-			//TODO: can it more than one ASN per prefix?
-			for _, h := range asns {
-				s.IpHolder[ip] = h.(map[string]interface{})["holder"].(string)
-				s.IpASN[ip] = h.(map[string]interface{})["asn"].(float64)
+	_, ipnet, neterr := net.ParseCIDR(pr.Addr.String() + "/24")
+	if neterr != nil {
+		ip := pr.Addr.String()
+		if net.ParseIP(ip).IsGlobalUnicast() {
+			s.Logging.Debugf("statsserver: retring client:%v info from ripe", pr.Addr)
+			_, ok = s.IpASN[ipnet.String()]
+			if !ok {
+				s.IpASN[ip] = 0
+				s.IpHolder[ip] = "unknown"
+				var p ripe.Prefix
+				p.Set(ip)
+				p.GetData()
+				s.Logging.Debugf("statsserver: got the client information from ripe:%v", p)
+				data, _ := p.Data["data"].(map[string]interface{})
+				asns := data["asns"].([]interface{})
+				//TODO: can it more than one ASN per prefix?
+				for _, h := range asns {
+					s.IpHolder[ipnet.String()] = h.(map[string]interface{})["holder"].(string)
+					s.IpASN[ipnet.String()] = h.(map[string]interface{})["asn"].(float64)
+				}
 			}
+		} else {
+			s.Logging.Debugf("statsserver: setting client:%v info from to private", pr.Addr)
+			s.IpHolder[ip] = "private"
+			s.IpASN[ip] = 0
 		}
 	} else {
-		s.IpHolder[ip] = "private"
-		s.IpASN[ip] = 0
+		s.Logging.Debugf("statsserver: setting client:%v info from to private", pr.Addr)
+		s.IpHolder[pr.Addr.String()] = "private"
+		s.IpASN[pr.Addr.String()] = 0
 	}
 	var err error
 	for {
