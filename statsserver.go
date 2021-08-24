@@ -151,20 +151,26 @@ func (collector *promStatsCollector) Collect(ch chan<- prometheus.Metric) {
 		statsserver.Logging.Tracef("statsserver: prom collector received trace stat:%v", stat)
 		ip := stat.NmonStat.GetTracestat().GetHopIP()
 		_, ok := statsserver.IpASN[ip]
-		if !ok {
-			statsserver.IpASN[ip] = 0
-			statsserver.IpHolder[ip] = "unknown"
-			var p ripe.Prefix
-			p.Set(ip)
-			p.GetData()
-			statsserver.Logging.Debugf("statsserver: got the tracehop information from ripe:%v", p)
-			data, _ := p.Data["data"].(map[string]interface{})
-			asns := data["asns"].([]interface{})
-			//TODO: can it more than one ASN per prefix?
-			for _, h := range asns {
-				statsserver.IpHolder[ip] = h.(map[string]interface{})["holder"].(string)
-				statsserver.IpASN[ip] = h.(map[string]interface{})["asn"].(float64)
+		if net.ParseIP(ip).IsGlobalUnicast() {
+
+			if !ok {
+				statsserver.IpASN[ip] = 0
+				statsserver.IpHolder[ip] = "unknown"
+				var p ripe.Prefix
+				p.Set(ip)
+				p.GetData()
+				statsserver.Logging.Debugf("statsserver: got the tracehop information from ripe:%v", p)
+				data, _ := p.Data["data"].(map[string]interface{})
+				asns := data["asns"].([]interface{})
+				//TODO: can it more than one ASN per prefix?
+				for _, h := range asns {
+					statsserver.IpHolder[ip] = h.(map[string]interface{})["holder"].(string)
+					statsserver.IpASN[ip] = h.(map[string]interface{})["asn"].(float64)
+				}
 			}
+		} else {
+			statsserver.IpHolder[ip] = "private"
+			statsserver.IpASN[ip] = 0
 		}
 
 		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.traceHopRTT, prometheus.GaugeValue, float64(stat.NmonStat.GetTracestat().HopRTT), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.CientASHolder, stat.NmonStat.GetTracestat().GetDestination(), fmt.Sprintf("%f", statsserver.IpASN[stat.NmonStat.GetTracestat().GetHopIP()]), statsserver.IpHolder[stat.NmonStat.GetTracestat().GetHopIP()], stat.NmonStat.GetTracestat().GetHopIP()))
@@ -318,21 +324,26 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 	s.Logging.Infof("statsserver: new client stats from ip:%v", pr.Addr)
 	// TODO: for testing purposes from local computer,
 	ip := pr.Addr.String()
-	_, ok = s.IpASN[ip]
-	if !ok {
-		s.IpASN[ip] = 0
-		s.IpHolder[ip] = "unknown"
-		var p ripe.Prefix
-		p.Set(ip)
-		p.GetData()
-		s.Logging.Debugf("statsserver: got the client information from ripe:%v", p)
-		data, _ := p.Data["data"].(map[string]interface{})
-		asns := data["asns"].([]interface{})
-		//TODO: can it more than one ASN per prefix?
-		for _, h := range asns {
-			s.IpHolder[ip] = h.(map[string]interface{})["holder"].(string)
-			s.IpASN[ip] = h.(map[string]interface{})["asn"].(float64)
+	if net.ParseIP(ip).IsGlobalUnicast() {
+		_, ok = s.IpASN[ip]
+		if !ok {
+			s.IpASN[ip] = 0
+			s.IpHolder[ip] = "unknown"
+			var p ripe.Prefix
+			p.Set(ip)
+			p.GetData()
+			s.Logging.Debugf("statsserver: got the client information from ripe:%v", p)
+			data, _ := p.Data["data"].(map[string]interface{})
+			asns := data["asns"].([]interface{})
+			//TODO: can it more than one ASN per prefix?
+			for _, h := range asns {
+				s.IpHolder[ip] = h.(map[string]interface{})["holder"].(string)
+				s.IpASN[ip] = h.(map[string]interface{})["asn"].(float64)
+			}
 		}
+	} else {
+		s.IpHolder[ip] = "private"
+		s.IpASN[ip] = 0
 	}
 	var err error
 	for {
