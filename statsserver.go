@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -323,8 +324,10 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 	}
 	s.Logging.Infof("statsserver: new client stats from ip:%v", pr.Addr)
 	// TODO: for testing purposes from local computer,
-	clientip := pr.Addr.String().Split(":")[0]
-	_, ipnet, neterr := net.ParseCIDR(clientip + "/24")
+
+	clientip := strings.Split(pr.Addr.String(), ":")
+
+	_, ipnet, neterr := net.ParseCIDR(clientip[0] + "/24")
 	ip := pr.Addr.String()
 	if neterr != nil {
 		ip = ipnet.String()
