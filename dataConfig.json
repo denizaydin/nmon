@@ -1,2 +1,130 @@
 {
+    "pingdests": {
+        "www.trendyol.com": {
+            "destination": "www.trendyol.com",
+            "timeout": "3",
+            "packetSize": 1000,
+            "interval": 3000,
+            "groups": {
+                "default": "default"
+            }
+        },
+        "mars-dc-lb-vip": {
+            "destination": "89.32.124.100",
+            "timeout": "3",
+            "packetSize": 1000,
+            "interval": 3000,
+            "groups": {
+                "default": "default"
+            }
+        },
+        "venus-dc-lb-vip": {
+            "destination": "89.42.34.100",
+            "timeout": "3",
+            "packetSize": 1000,
+            "interval": 3000,
+            "groups": {
+                "default": "default"
+            }
+        },
+        "google": {
+            "destination": "www.google.com",
+            "timeout": "3",
+            "packetSize": 1000,
+            "interval": 3000,
+            "groups": {
+                "default": "default"
+            }
+        }
+    },
+    "resolvedests": {
+        "www.trendyol.com-fromGoogleDNS": {
+            "destination": "www.trendyol.com",
+            "timeout": "3",
+            "interval": 3000,
+            "resolveServer": "8.8.8.8:53",
+            "groups": {
+                "default": "default"
+            }
+        },
+        "www.trendyol.com-fromCFDNS": {
+            "destination": "www.trendyol.com",
+            "timeout": "3",
+            "interval": 3000,
+            "resolveServer": "1.1.1.1:53",
+            "groups": {
+                "default": "default"
+            }
+        },
+        "www.trendyol.com-usingLocal": {
+            "destination": "www.trendyol.com",
+            "timeout": "3",
+            "interval": 3000,
+            "groups": {
+                "default": "default"
+            }
+        },
+        "www.trendyol.com-fromTT1": {
+            "destination": "www.trendyol.com",
+            "timeout": "3",
+            "interval": 3000,
+            "resolveServer": "195.175.39.39:53",
+            "groups": {
+                "default": "default"
+            }
+        },
+        "www.trendyol.com-fromTT2": {
+            "destination": "www.trendyol.com",
+            "timeout": "3",
+            "interval": 3000,
+            "resolveServer": "195.175.39.40:53",
+            "groups": {
+                "default": "default"
+            }
+        },
+        "www.google.com-fromTT1": {
+            "destination": "www.google.com",
+            "timeout": "3",
+            "interval": 3000,
+            "resolveServer": "195.175.39.39:53",
+            "groups": {
+                "default": "default"
+            }
+        },
+        "www.google.com-fromTT2": {
+            "destination": "www.google.com",
+            "timeout": "3",
+            "interval": 3000,
+            "resolveServer": "195.175.39.40:53",
+            "groups": {
+                "default": "default"
+            }
+        }
+    },
+    "tracedests": {
+        "www.trendyol.com": {
+            "destination": "www.trendyol.com",
+            "timeout": "3",
+            "interval": 60000,
+            "groups": {
+                "default": "default"
+            }
+        },
+        "mars-lb-vip": {
+            "destination": "89.32.124.100",
+            "timeout": "3",
+            "interval": 60000,
+            "groups": {
+                "default": "default"
+            }
+        },
+        "venus-lb-vip": {
+            "destination": "89.42.34.100",
+            "timeout": "3",
+            "interval": 60000,
+            "groups": {
+                "default": "default"
+            }
+        }
+    }
 }
