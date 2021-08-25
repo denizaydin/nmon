@@ -61,7 +61,7 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 				if !c.IsStatsClientConnected {
 					c.Logging.Tracef("resolver:%v: stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
 				} else {
-					c.Logging.Tracef("resolver:%v received stats:%v for resolve destination:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
+					c.Logging.Tracef("resolver:%v received stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
 					var streamerr error
 					stream, streamerr = c.StatsConnClient.RecordStats(context.Background())
 					if streamerr != nil {
@@ -103,7 +103,7 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 				if !c.IsStatsClientConnected {
 					c.Logging.Tracef("resolver:%v: stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
 				} else {
-					c.Logging.Tracef("resolver:%v received stats:%v for resolve destination:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
+					c.Logging.Tracef("resolver:%v received stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
 					var streamerr error
 					stream, streamerr = c.StatsConnClient.RecordStats(context.Background())
 					if streamerr != nil {

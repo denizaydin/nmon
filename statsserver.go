@@ -151,14 +151,18 @@ func (collector *promStatsCollector) Collect(ch chan<- prometheus.Metric) {
 	case *proto.StatsObject_Tracestat:
 		statsserver.Logging.Tracef("statsserver: prom collector received trace stat:%v", stat)
 		ip := stat.NmonStat.GetTracestat().GetHopIP()
+		_, ipnet, neterr := net.ParseCIDR(ip + "/24")
+		if neterr == nil {
+			ip = ipnet.String()
+			statsserver.Logging.Tracef("statsserver: changed client as storage info to:%v", ip)
+		}
 		_, ok := statsserver.IpASN[ip]
 		if net.ParseIP(ip).IsGlobalUnicast() {
-
 			if !ok {
 				statsserver.IpASN[ip] = 0
 				statsserver.IpHolder[ip] = "unknown"
 				var p ripe.Prefix
-				p.Set(ip)
+				p.Set(stat.NmonStat.GetTracestat().GetHopIP())
 				p.GetData()
 				statsserver.Logging.Debugf("statsserver: got the tracehop information from ripe:%v", p)
 				data, _ := p.Data["data"].(map[string]interface{})
@@ -173,7 +177,6 @@ func (collector *promStatsCollector) Collect(ch chan<- prometheus.Metric) {
 			statsserver.IpHolder[ip] = "private"
 			statsserver.IpASN[ip] = 0
 		}
-
 		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.traceHopRTT, prometheus.GaugeValue, float64(stat.NmonStat.GetTracestat().HopRTT), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.CientASHolder, stat.NmonStat.GetTracestat().GetDestination(), fmt.Sprintf("%f", statsserver.IpASN[stat.NmonStat.GetTracestat().GetHopIP()]), statsserver.IpHolder[stat.NmonStat.GetTracestat().GetHopIP()], stat.NmonStat.GetTracestat().GetHopIP()))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write trace hop rtt stat:%v", ps)
@@ -326,10 +329,9 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 	// TODO: for testing purposes from local computer,
 
 	clientip := strings.Split(pr.Addr.String(), ":")
-
 	_, ipnet, neterr := net.ParseCIDR(clientip[0] + "/24")
 	ip := pr.Addr.String()
-	if neterr != nil {
+	if neterr == nil {
 		ip = ipnet.String()
 		s.Logging.Tracef("statsserver: changed client as storage info to:%v", ip)
 	}
@@ -341,7 +343,7 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 			s.IpASN[ip] = 0
 			s.IpHolder[ip] = "unknown"
 			var p ripe.Prefix
-			p.Set(ip)
+			p.Set(clientip[0])
 			p.GetData()
 			s.Logging.Debugf("statsserver: got the client information from ripe:%v", p)
 			data, _ := p.Data["data"].(map[string]interface{})
@@ -367,7 +369,7 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 				CientASHolder: s.IpHolder[ip],
 				NmonStat:      &proto.StatsObject{},
 			}
-			s.Logging.Debugf("statsserver: received receivedstat:%v from the client:%v %v, relaying it to prometheus collector", receivedstat, receivedstat.GetClient().GetName(), receivedstat.GetClient().GetId())
+			s.Logging.Debugf("statsserver: received received stat:%v from the client:%v %v, relaying it to prometheus collector", receivedstat, receivedstat.GetClient().GetName(), receivedstat.GetClient().GetId())
 			stat.NmonStat = receivedstat
 			statsserver.PromCollectorChannel <- stat
 		} else {
@@ -397,7 +399,6 @@ func main() {
 	go func() {
 		statsserver.Logging.Infof("statsserver: prometheus server is initialized with parameters:%+v", statsserver.PromMetricServerAddr)
 		reg := prometheus.NewPedanticRegistry()
-
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
 			reg,
