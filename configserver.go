@@ -217,6 +217,7 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 					Updatetime: time.Now().UnixNano(),
 					Object: &proto.MonitoringObject_Pingdest{
 						Pingdest: &proto.PingDest{
+							Name:        monObject.GetPingdest().GetName(),
 							Destination: monObject.GetPingdest().Destination,
 							Timeout:     int32(3 * s.ClientUpdateTime),
 							Interval:    monObject.GetPingdest().Interval,
@@ -244,6 +245,7 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 					Updatetime: time.Now().UnixNano(),
 					Object: &proto.MonitoringObject_Resolvedest{
 						Resolvedest: &proto.ResolveDest{
+							Name:          monObject.GetResolvedest().GetName(),
 							Destination:   monObject.GetResolvedest().Destination,
 							Timeout:       int32(3 * s.ClientUpdateTime),
 							Interval:      monObject.GetResolvedest().Interval,
@@ -271,6 +273,7 @@ func calculateUpdate(s *Server, updateClient *ClientConnection) map[string]*prot
 					Updatetime: time.Now().UnixNano(),
 					Object: &proto.MonitoringObject_Tracedest{
 						Tracedest: &proto.TraceDest{
+							Name:        monObject.GetTracedest().GetName(),
 							Destination: monObject.GetTracedest().Destination,
 							Timeout:     int32(3 * s.ClientUpdateTime),
 							Interval:    monObject.GetTracedest().Interval,

@@ -55,7 +55,7 @@ func (client *NmonClient) Run() {
 				client.Logging.Tracef("checking ping object:%T", t)
 				if _, ok := runningPingObjects[key]; ok {
 					client.Logging.Tracef("found ping:%v object and its last updated %v ago", key, time.Unix(0, monObject.ConfigurationUpdatetime))
-					client.Logging.Tracef("pinger current time:%v, configuration updatetime:%v, threadupdatime:%v, timeout:%v and interval:%v", time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(runningPingObjects[key].ThreadupdateTime), int64(monObject.Object.GetPingdest().Timeout)*1000000000, int64(runningPingObjects[key].Object.GetPingdest().Interval)*1500000)
+					client.Logging.Tracef("pinger:%v current time:%v, configuration updatetime:%v, threadupdatime:%v, timeout:%v and interval:%v", key, time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(runningPingObjects[key].ThreadupdateTime), int64(monObject.Object.GetPingdest().Timeout)*1000000000, int64(runningPingObjects[key].Object.GetPingdest().Interval)*1500000)
 					if (time.Now().UnixNano() - monObject.ConfigurationUpdatetime) > (int64(monObject.Object.GetPingdest().Timeout) * 1000000000) {
 						client.Logging.Tracef("found timeout ping:%v object, stopping it", key)
 						runningPingObjects[key].Notify <- "done"
@@ -92,7 +92,7 @@ func (client *NmonClient) Run() {
 				client.Logging.Debugf("checking resolve object:%T", t)
 				if _, ok := runningResolveObjects[key]; ok {
 					client.Logging.Tracef("found resolve:%v object and its last updated %v ago", key, time.Unix(0, monObject.ConfigurationUpdatetime))
-					client.Logging.Tracef("resolver current time:%v, configuration updatetime:%v, threadupdatime:%v, timeout:%v and interval:%v", time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(runningResolveObjects[key].ThreadupdateTime), int64(monObject.Object.GetResolvedest().Timeout)*1000000000, int64(runningResolveObjects[key].Object.GetResolvedest().Interval)*1500000)
+					client.Logging.Tracef("resolver:%v current time:%v, configuration updatetime:%v, threadupdatime:%v, timeout:%v and interval:%v", key, time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(runningResolveObjects[key].ThreadupdateTime), int64(monObject.Object.GetResolvedest().Timeout)*1000000000, int64(runningResolveObjects[key].Object.GetResolvedest().Interval)*1500000)
 					if (time.Now().UnixNano() - monObject.ConfigurationUpdatetime) > (int64(monObject.Object.GetResolvedest().Timeout) * 1000000000) {
 						client.Logging.Infof("found timeout resolve:%v object, stopping it", key)
 						runningResolveObjects[key].Notify <- "done"
@@ -129,7 +129,7 @@ func (client *NmonClient) Run() {
 				client.Logging.Debugf("checking resolve object:%T", t)
 				if _, ok := runningTraceObjects[key]; ok {
 					client.Logging.Tracef("found trace:%v monitoring object and its last updated %v ago", key, time.Unix(0, monObject.ConfigurationUpdatetime))
-					client.Logging.Tracef("tracer current time:%v, configuration updatetime:%v, threadupdatime:%v, timeout:%v and interval:%v", time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(runningTraceObjects[key].ThreadupdateTime), int64(monObject.Object.GetTracedest().Timeout)*1000000000, int64(runningTraceObjects[key].Object.GetTracedest().Interval)*1500000)
+					client.Logging.Tracef("tracer:%v current time:%v, configuration updatetime:%v, threadupdatime:%v, timeout:%v and interval:%v", key, time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(runningTraceObjects[key].ThreadupdateTime), int64(monObject.Object.GetTracedest().Timeout)*1000000000, int64(runningTraceObjects[key].Object.GetTracedest().Interval)*1500000)
 					if (time.Now().UnixNano() - monObject.ConfigurationUpdatetime) > (int64(monObject.Object.GetTracedest().Timeout) * 1000000000) {
 						client.Logging.Infof("found timeout trace:%v object, stopping it", key)
 						runningTraceObjects[key].Notify <- "done"
