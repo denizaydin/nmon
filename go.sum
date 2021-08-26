@@ -67,8 +67,6 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/denizaydin/ping v0.0.0-20210717094155-63c771f731cd h1:tNoDk3LuCcsUuhDuecHVdKhmdRtcMFKGz0EX6JsnKhE=
-github.com/denizaydin/ping v0.0.0-20210717094155-63c771f731cd/go.mod h1:hfzBVkBCxJpNMynQfnBPL0E9C1oFhMtRc24quOEsdFQ=
 github.com/denizaydin/ping v0.0.0-20210727084327-d13f6ad81c52 h1:YDTLPJnXyggb7mNRN30afC8ruFZn/B3La5FVrW9Igyc=
 github.com/denizaydin/ping v0.0.0-20210727084327-d13f6ad81c52/go.mod h1:hfzBVkBCxJpNMynQfnBPL0E9C1oFhMtRc24quOEsdFQ=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=

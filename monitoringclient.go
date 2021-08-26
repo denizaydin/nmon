@@ -167,73 +167,69 @@ func getMonitoringObjects(client *nmonclient.NmonClient) {
 				break
 			}
 			client.IsConfigClientConnected = true
-			client.WaitGroup.Add(1)
-			client.Logging.Info("configuration service is registred, waiting for monitoring object to be streamed")
-			go func(str proto.ConfigServer_CreateStreamClient) {
-				defer client.WaitGroup.Done()
-				for {
-					client.Logging.Tracef("reading stream messages from the config server")
-					monitoringObject, err := str.Recv()
-					if err != nil {
-						client.Logging.Errorf("error reading configuration message: %v", err)
-						client.IsConfigClientConnected = false
-						break
-					}
-					client.Logging.Debugf("received configuration message %s", monitoringObject)
-					// adding configuration objects into conf objects map. As same destinstion can be added for multiple type, uniquness is needed for the map key.
-					switch t := monitoringObject.Object.(type) {
-					case *proto.MonitoringObject_Pingdest:
-						client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"] = &nmonclient.MonObject{
-							ConfigurationUpdatetime: time.Now().UnixNano(),
-							Object:                  monitoringObject,
-						}
-						// Configuration checks
-						// Check interval
-						if client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval < 100 {
-							client.Logging.Warnf("monclient:%v, interval for ping object:%v is too low", monitoringObject.GetPingdest().GetDestination(), client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval)
-							client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval = 100
-						} else if client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval > 60000 {
-							client.Logging.Warnf("monclient:%v, interval for ping object:%v is too high", monitoringObject.GetPingdest().GetDestination(), client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval)
-							client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval = 60000
-						}
-					case *proto.MonitoringObject_Resolvedest:
-						client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"] = &nmonclient.MonObject{
-							ConfigurationUpdatetime: time.Now().UnixNano(),
-							Object:                  monitoringObject,
-						}
-						// Configuration checks
-						// Check interval
-						if client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval < 3000 {
-							client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval = 3000
-							client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too low", monitoringObject.GetResolvedest().GetDestination(), client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval)
-						} else if client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval > 60000 {
-							client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too high", monitoringObject.GetResolvedest().GetDestination(), client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval)
-							client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval = 60000
-						}
-					case *proto.MonitoringObject_Tracedest:
-						client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"] = &nmonclient.MonObject{
-							ConfigurationUpdatetime: time.Now().UnixNano(),
-							Object:                  monitoringObject,
-						}
-						// Configuration checks
-						// Check interval
-						if client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval < 60000 {
-							client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval = 60000
-							client.Logging.Warnf("monclient:%v, interval for trace object:%v is too low", monitoringObject.GetTracedest().GetDestination(), client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval)
-						} else if client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval > 1800000 {
-							client.Logging.Warnf("monclient:%v, interval for trace object:%v is too high", monitoringObject.GetTracedest().GetDestination(), client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval)
-							client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval = 1800000
-						}
-					case nil:
-						// The field is not set.
-					default:
-						client.Logging.Errorf("unexpected monitoring object type %T", t)
-					}
+			client.Logging.Info("configuration service is registered, waiting for monitoring object to be streamed")
+			for {
+				monitoringObject, err := stream.Recv()
+				if err != nil {
+					client.Logging.Errorf("error reading configuration message: %v", err)
+					client.IsConfigClientConnected = false
+					break
 				}
-			}(stream)
+				client.Logging.Debugf("received configuration message %s", monitoringObject)
+				// adding configuration objects into conf objects map. As same destinstion can be added for multiple type, uniquness is needed for the map key.
+				switch t := monitoringObject.Object.(type) {
+				case *proto.MonitoringObject_Pingdest:
+					client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"] = &nmonclient.MonObject{
+						ConfigurationUpdatetime: time.Now().UnixNano(),
+						Object:                  monitoringObject,
+					}
+					// Configuration checks
+					// Check interval
+					if client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval < 100 {
+						client.Logging.Warnf("monclient:%v, interval for ping object:%v is too low", monitoringObject.GetPingdest().GetDestination(), client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval)
+						client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval = 100
+					} else if client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval > 60000 {
+						client.Logging.Warnf("monclient:%v, interval for ping object:%v is too high", monitoringObject.GetPingdest().GetDestination(), client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval)
+						client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval = 60000
+					}
+				case *proto.MonitoringObject_Resolvedest:
+					client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"] = &nmonclient.MonObject{
+						ConfigurationUpdatetime: time.Now().UnixNano(),
+						Object:                  monitoringObject,
+					}
+					// Configuration checks
+					// Check interval
+					if client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval < 3000 {
+						client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval = 3000
+						client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too low", monitoringObject.GetResolvedest().GetDestination(), client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval)
+					} else if client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval > 60000 {
+						client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too high", monitoringObject.GetResolvedest().GetDestination(), client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval)
+						client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval = 60000
+					}
+				case *proto.MonitoringObject_Tracedest:
+					client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"] = &nmonclient.MonObject{
+						ConfigurationUpdatetime: time.Now().UnixNano(),
+						Object:                  monitoringObject,
+					}
+					// Configuration checks
+					// Check interval
+					if client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval < 60000 {
+						client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval = 60000
+						client.Logging.Warnf("monclient:%v, interval for trace object:%v is too low", monitoringObject.GetTracedest().GetDestination(), client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval)
+					} else if client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval > 1800000 {
+						client.Logging.Warnf("monclient:%v, interval for trace object:%v is too high", monitoringObject.GetTracedest().GetDestination(), client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval)
+						client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval = 1800000
+					}
+				case nil:
+					// The field is not set.
+				default:
+					client.Logging.Errorf("unexpected monitoring object type %T", t)
+				}
+			}
+
 		}
-		client.Logging.Errorf("reading configuration data failed: %v, waiting for 10sec to retry")
-		time.Sleep(10 * time.Second)
+		client.Logging.Errorf("configuration service failed, waiting for 3sec to retry")
+		time.Sleep(3 * time.Second)
 	}
 }
 func connectStatsServer(client *nmonclient.NmonClient) {
