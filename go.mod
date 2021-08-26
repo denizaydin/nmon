@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/aeden/traceroute v0.0.0-20210211061815-03f5f7cb7908
-	github.com/denizaydin/ping v0.0.0-20210826103404-a88d409cf664
+	github.com/denizaydin/ping v0.0.0-20210826115835-44a07a402713
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/mehrdadrad/mylg v0.2.6
 	github.com/prometheus/client_golang v1.10.0

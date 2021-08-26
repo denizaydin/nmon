@@ -389,6 +389,8 @@ func getData(s *Server) {
 	viper.UnmarshalKey("tracedests", &tracedestinations)
 	viper.UnmarshalKey("resolvedests", &resolvedestinations)
 	for pingDest := range pingdestinations {
+		server.Logging.Infof("%v", pingDest)
+
 		monitoringObjects[pingDest+"-ping"] = &proto.MonitoringObject{
 			Object: &proto.MonitoringObject_Pingdest{
 				Pingdest: pingdestinations[pingDest],

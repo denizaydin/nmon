@@ -7,10 +7,8 @@ import (
 	"flag"
 	"io/ioutil"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	proto "github.com/denizaydin/nmon/api"
@@ -288,7 +286,7 @@ func connectStatsServer(client *nmonclient.NmonClient) {
 				client.Logging.Infof("sent client stats update to the server, timestamp:%v and number of monitoring objects is:%v", msg.GetTimestamp(), int32(len(client.MonObecjts)))
 				time.Sleep(1 * time.Second)
 			}
-			client.Logging.Errorf("sending client stats data failed: %v, waiting for 10sec to retry")
+			client.Logging.Error("sending client stats data failed, waiting for 10sec to retry")
 			time.Sleep(10 * time.Second)
 		}
 	}
@@ -298,18 +296,6 @@ func main() {
 	go getMonitoringObjects(client)
 	go connectStatsServer(client)
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs)
-	go func() {
-		s := <-sigs
-		switch s {
-		case syscall.SIGURG:
-			client.Logging.Infof("received unhandled %v signal from os:", s)
-		default:
-			client.Logging.Infof("received %v signal from os,exiting", s)
-			os.Exit(1)
-		}
-	}()
 	client.Run()
 	client.WaitGroup.Add(1)
 	go func() {
@@ -318,5 +304,4 @@ func main() {
 	go func() {
 		client.WaitGroup.Wait()
 	}()
-	select {}
 }

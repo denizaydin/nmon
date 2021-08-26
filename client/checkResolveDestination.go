@@ -21,6 +21,7 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 			c.Logging.Debugf("resolver:%v received stop request", resolvedest.Object.GetResolvedest().GetDestination())
 			exit = true
 		case <-interval.C:
+			resolvedest.ThreadupdateTime = time.Now().UnixNano()
 			c.Logging.Tracef("resolver:%v interval:%v", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
 			if resolvedest.Object.GetResolvedest().ResolveServer != "" {
 				c.Logging.Tracef("resolver:%v starting resolve using resolver:%v ", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().ResolveServer)

@@ -12,6 +12,7 @@ import (
 //MonObject each monitoring object has id, timestamp that shows last configuration active time and a notify channel.We will be watching the last configuration updatatime and will kill those object that is not active shorrter than the servers received broadcast time
 type MonObject struct {
 	ConfigurationUpdatetime int64
+	ThreadupdateTime        int64
 	Object                  *proto.MonitoringObject
 	Notify                  chan string
 }
@@ -23,6 +24,7 @@ type NmonClient struct {
 	StatsClient             *proto.Client
 	StatsConnClient         proto.StatsClient
 	IsStatsClientConnected  bool
+	Statschannel            chan *proto.StatsObject
 	MonObecjts              map[string]*MonObject
 	MonObjectScanTimer      *time.Ticker
 	Logging                 *logrus.Logger
@@ -53,7 +55,7 @@ func (client *NmonClient) Run() {
 				client.Logging.Tracef("checking ping object:%T", t)
 				if _, ok := runningPingObjects[key]; ok {
 					client.Logging.Tracef("found ping:%v object and its last updated %v ago", key, time.Unix(0, monObject.ConfigurationUpdatetime))
-					client.Logging.Tracef("current time:%v, configuration updatetime:%v and timeout:%v", time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(monObject.Object.GetPingdest().Timeout)*1000000000)
+					client.Logging.Tracef("current time:%v, configuration updatetime:%v, threadupdatime:%v, timeout:%v and interval:%v", time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(runningPingObjects[key].ThreadupdateTime), int64(monObject.Object.GetPingdest().Timeout)*1000000000, int64(runningPingObjects[key].Object.GetPingdest().Interval))
 					if (time.Now().UnixNano() - monObject.ConfigurationUpdatetime) > (int64(monObject.Object.GetPingdest().Timeout) * 1000000000) {
 						client.Logging.Tracef("found timeout ping:%v object, stopping it", key)
 						runningPingObjects[key].Notify <- "done"
@@ -62,6 +64,14 @@ func (client *NmonClient) Run() {
 						client.Logging.Trace("removing ping:%v object from the ping object list", key)
 						delete(client.MonObecjts, key)
 						client.Logging.Debugf("deleted ping:%v object", key)
+					} else if time.Now().UnixNano()-runningPingObjects[key].ThreadupdateTime > (int64(runningPingObjects[key].Object.GetPingdest().Interval) * 1500000) {
+						client.Logging.Infof("found dead ping:%v object, respawning", key)
+						runningPingObjects[key] = &MonObject{
+							ConfigurationUpdatetime: time.Now().UnixNano(),
+							Object:                  monObject.Object,
+							Notify:                  make(chan string),
+						}
+						go CheckResolveDestination(runningPingObjects[key], client)
 					} else {
 						client.Logging.Debugf("updating ping object:%v, values:", key, monObject.Object.GetPingdest())
 						runningPingObjects[key].Object.GetPingdest().Interval = monObject.Object.GetPingdest().GetInterval()
@@ -82,7 +92,7 @@ func (client *NmonClient) Run() {
 				client.Logging.Debugf("checking resolve object:%T", t)
 				if _, ok := runningResolveObjects[key]; ok {
 					client.Logging.Tracef("found resolve:%v object and its last updated %v ago", key, time.Unix(0, monObject.ConfigurationUpdatetime))
-					client.Logging.Tracef("current time:%v, configuration updatetime:%v and timeout:%v", time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(monObject.Object.GetResolvedest().Timeout)*1000000000)
+					client.Logging.Tracef("current time:%v, configuration updatetime:%v, threadupdatime:%v, timeout:%v and interval:%v", time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(runningResolveObjects[key].ThreadupdateTime), int64(monObject.Object.GetResolvedest().Timeout)*1000000000, int64(runningResolveObjects[key].Object.GetResolvedest().Interval))
 					if (time.Now().UnixNano() - monObject.ConfigurationUpdatetime) > (int64(monObject.Object.GetResolvedest().Timeout) * 1000000000) {
 						client.Logging.Infof("found timeout resolve:%v object, stopping it", key)
 						runningResolveObjects[key].Notify <- "done"
@@ -91,6 +101,14 @@ func (client *NmonClient) Run() {
 						client.Logging.Trace("removing resolve:%v object, from the resolve object list", key)
 						delete(client.MonObecjts, key)
 						client.Logging.Debugf("deleted resolve:%v object", key)
+					} else if time.Now().UnixNano()-runningResolveObjects[key].ThreadupdateTime > (int64(runningResolveObjects[key].Object.GetResolvedest().Interval) * 1500000) {
+						client.Logging.Infof("found dead resolve:%v object, respawning", key)
+						runningResolveObjects[key] = &MonObject{
+							ConfigurationUpdatetime: time.Now().UnixNano(),
+							Object:                  monObject.Object,
+							Notify:                  make(chan string),
+						}
+						go CheckResolveDestination(runningResolveObjects[key], client)
 					} else {
 						client.Logging.Debugf("updating resolve:%v object", key)
 						runningResolveObjects[key].Object.GetResolvedest().Interval = monObject.Object.GetResolvedest().GetInterval()
@@ -110,7 +128,7 @@ func (client *NmonClient) Run() {
 				client.Logging.Debugf("checking resolve object:%T", t)
 				if _, ok := runningTraceObjects[key]; ok {
 					client.Logging.Tracef("found trace:%v monitoring object and its last updated %v ago", key, time.Unix(0, monObject.ConfigurationUpdatetime))
-					client.Logging.Tracef("current time:%v, configuration updatetime:%v and timeout:%v", time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(monObject.Object.GetTracedest().Timeout)*1000000000)
+					client.Logging.Tracef("current time:%v, configuration updatetime:%v, threadupdatime:%v, timeout:%v and interval:%v", time.Now().UnixNano(), monObject.ConfigurationUpdatetime, int64(runningTraceObjects[key].ThreadupdateTime), int64(monObject.Object.GetTracedest().Timeout)*1000000000, int64(runningTraceObjects[key].Object.GetTracedest().Interval))
 					if (time.Now().UnixNano() - monObject.ConfigurationUpdatetime) > (int64(monObject.Object.GetTracedest().Timeout) * 1000000000) {
 						client.Logging.Infof("found timeout trace:%v object, stopping it", key)
 						runningTraceObjects[key].Notify <- "done"
@@ -119,6 +137,14 @@ func (client *NmonClient) Run() {
 						client.Logging.Trace("removing trace:%v object, from the trace object list", key)
 						delete(client.MonObecjts, key)
 						client.Logging.Debugf("deleted trace:%v object", key)
+					} else if time.Now().UnixNano()-runningTraceObjects[key].ThreadupdateTime > (int64(runningTraceObjects[key].Object.GetTracedest().Interval) * 1500000) {
+						client.Logging.Infof("found dead resolve:%v object, respawning", key)
+						runningTraceObjects[key] = &MonObject{
+							ConfigurationUpdatetime: time.Now().UnixNano(),
+							Object:                  monObject.Object,
+							Notify:                  make(chan string),
+						}
+						go CheckResolveDestination(runningTraceObjects[key], client)
 					} else {
 						client.Logging.Debugf("updating running trace object:%v", key)
 						runningTraceObjects[key].Object.GetTracedest().Interval = monObject.Object.GetTracedest().GetInterval()
@@ -137,9 +163,8 @@ func (client *NmonClient) Run() {
 				client.Logging.Warnf("unimplemented monitoring object type:%T", t)
 			}
 		}
-		client.Logging.Trace("sleeping for 10 seconds")
-		time.Sleep(10 * time.Second)
-		client.Logging.Trace("waked from sleeping")
+		client.Logging.Trace("sleeping for 3sec for scanning monobjects")
+		time.Sleep(3 * time.Second)
 	}
 }
 

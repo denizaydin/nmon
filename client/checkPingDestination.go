@@ -59,14 +59,15 @@ func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 	pinger.Interval = &pingdest.Object.GetPingdest().Interval
 	pinger.SetPrivileged(true)
 	c.Logging.Debugf("pinger:%v host:%s with size %s and interval %s", pingdest.Object.GetPingdest().GetDestination(), packetsize, pingdest.Object.GetPingdest().Interval)
+	exit := false
 	go func() {
-		for {
+		for !exit {
 			select {
 			case <-pingdest.Notify:
 				c.Logging.Debugf("pinger:%v is stopped", pingdest.Object.GetPingdest().GetDestination())
 				pinger.Stop()
+				exit = true
 			}
-			time.Sleep(time.Duration(pingdest.Object.GetPingdest().Interval) * time.Millisecond)
 		}
 	}()
 	err = pinger.Run()
