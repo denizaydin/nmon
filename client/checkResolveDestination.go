@@ -10,21 +10,20 @@ import (
 
 //CheckResolveDestination - Send DNS Responce queries for the specified object with specified interval.
 func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
-	log := c.Logging
 	var stream proto.Stats_RecordStatsClient
-	c.Logging.Infof("resolver:%v: start with values:%v", resolvedest.Object.GetResolvedest(), resolvedest.Object)
+	c.Logging.Debugf("resolver:%v start with values:%v", resolvedest.Object.GetResolvedest(), resolvedest.Object)
 	interval := time.NewTimer(time.Duration(1 * time.Second))
-	log.Debugf("tracer:%v: will start with in 1sec", resolvedest.Object.GetResolvedest().GetDestination())
+	c.Logging.Tracef("resolver:%v will start with in 1sec", resolvedest.Object.GetResolvedest().GetDestination())
 	exit := false
 	for !exit {
 		select {
 		case <-resolvedest.Notify:
-			log.Infof("resolver:%v: received stop request", resolvedest.Object.GetResolvedest().GetDestination())
+			c.Logging.Debugf("resolver:%v received stop request", resolvedest.Object.GetResolvedest().GetDestination())
 			exit = true
 		case <-interval.C:
-			log.Tracef("resolver:%v: interval which is:%v fired", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
+			c.Logging.Tracef("resolver:%v interval:%v", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
 			if resolvedest.Object.GetResolvedest().ResolveServer != "" {
-				log.Tracef("resolver:%v: starting resolve using resolver:%v ", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().ResolveServer)
+				c.Logging.Tracef("resolver:%v starting resolve using resolver:%v ", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().ResolveServer)
 				r := &net.Resolver{
 					PreferGo: true,
 					Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -35,16 +34,16 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 					},
 				}
 				st := time.Now()
-				log.Tracef("resolver:%v: sending req to resolver:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer())
+				c.Logging.Tracef("resolver:%v sending req to resolver:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer())
 				ips, err := r.LookupHost(context.Background(), resolvedest.Object.GetResolvedest().GetDestination())
 				diff := int64(-1)
 				resolvedip := "unresolved"
 				if err == nil {
 					diff = time.Now().Sub(st).Milliseconds()
-					log.Debugf("resolver:%v: received response:%v from resolver:%v in:%v", resolvedest.Object.GetResolvedest().GetDestination(), ips[0], resolvedest.Object.GetResolvedest().ResolveServer, diff)
+					c.Logging.Debugf("resolver:%v received response:%v from resolver:%v in:%v", resolvedest.Object.GetResolvedest().GetDestination(), ips[0], resolvedest.Object.GetResolvedest().ResolveServer, diff)
 					resolvedip = ips[0]
 				} else {
-					log.Debugf("resolver:%v: no reponse received from resolver:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer(), err)
+					c.Logging.Debugf("resolver:%v no reponse received from resolver:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer(), err)
 				}
 				stat := &proto.StatsObject{
 					Client:    c.StatsClient,
@@ -59,33 +58,33 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 					},
 				}
 				if !c.IsStatsClientConnected {
-					c.Logging.Tracef("resolver:%v: stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
+					c.Logging.Tracef("resolver:%v stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
 				} else {
 					c.Logging.Tracef("resolver:%v received stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
 					var streamerr error
 					stream, streamerr = c.StatsConnClient.RecordStats(context.Background())
 					if streamerr != nil {
-						c.Logging.Errorf("resolver:%v: grpc stream failed while sending stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), streamerr)
+						c.Logging.Errorf("resolver:%v grpc stream failed while sending stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), streamerr)
 					} else {
 						if err := stream.Send(stat); err != nil {
-							c.Logging.Errorf("resolver:%v: can not send client stats:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), stream, err)
+							c.Logging.Errorf("resolver:%v can not send client stats:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), stream, err)
 						} else {
-							c.Logging.Debugf("resolver:%v: send stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
+							c.Logging.Debugf("resolver:%v send stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
 						}
 					}
 				}
 			} else {
 				st := time.Now()
-				log.Tracef("resolver:%v: sending req to resolver:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer())
+				c.Logging.Tracef("resolver:%v sending req to resolver:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer())
 				ips, err := net.LookupHost(resolvedest.Object.GetResolvedest().GetDestination())
 				diff := int64(-1)
 				resolvedip := "unresolved"
 				if err == nil {
 					diff = time.Now().Sub(st).Milliseconds()
-					log.Debugf("resolver:%v: received response:%v from resolver:%v in:%v", resolvedest.Object.GetResolvedest().GetDestination(), ips[0], resolvedest.Object.GetResolvedest().GetResolveServer(), diff)
+					c.Logging.Debugf("resolver:%v received response:%v from resolver:%v in:%v", resolvedest.Object.GetResolvedest().GetDestination(), ips[0], resolvedest.Object.GetResolvedest().GetResolveServer(), diff)
 					resolvedip = ips[0]
 				} else {
-					log.Debugf("resolver:%v: no reponse received from resolver:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer(), err)
+					c.Logging.Debugf("resolver:%v no reponse received from resolver:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().GetResolveServer(), err)
 				}
 				stat := &proto.StatsObject{
 					Client:    c.StatsClient,
@@ -99,27 +98,27 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 						},
 					},
 				}
-				log.Tracef("resolver:%v: stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
+				c.Logging.Tracef("resolver:%v stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
 				if !c.IsStatsClientConnected {
-					c.Logging.Tracef("resolver:%v: stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
+					c.Logging.Tracef("resolver:%v stats server is not ready skipping", resolvedest.Object.GetResolvedest().GetDestination())
 				} else {
 					c.Logging.Tracef("resolver:%v received stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
 					var streamerr error
 					stream, streamerr = c.StatsConnClient.RecordStats(context.Background())
 					if streamerr != nil {
-						c.Logging.Errorf("resolver:%v: grpc stream failed while sending stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), streamerr)
+						c.Logging.Errorf("resolver:%v grpc stream failed while sending stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), streamerr)
 					} else {
 						if err := stream.Send(stat); err != nil {
-							c.Logging.Errorf("resolver:%v: can not send client stats:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), stream, err)
+							c.Logging.Errorf("resolver:%v can not send client stats:%v, err:%v", resolvedest.Object.GetResolvedest().GetDestination(), stream, err)
 						} else {
-							c.Logging.Debugf("resolver:%v: send stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
+							c.Logging.Debugf("resolver:%v send stats:%v", resolvedest.Object.GetResolvedest().GetDestination(), stat)
 						}
 					}
 				}
 			}
-			log.Tracef("resolver:%v: setting interval to:%v", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
+			c.Logging.Tracef("resolver:%v setting interval to:%v", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
 			interval = time.NewTimer(time.Duration(resolvedest.Object.GetResolvedest().Interval) * time.Millisecond)
 		}
 	}
-	log.Infof("resolver:%v exiting", resolvedest.Object.GetResolvedest().GetDestination())
+	c.Logging.Debugf("resolver:%v exiting", resolvedest.Object.GetResolvedest().GetDestination())
 }
