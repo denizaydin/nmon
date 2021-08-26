@@ -177,46 +177,46 @@ func getMonitoringObjects(client *nmonclient.NmonClient) {
 				// adding configuration objects into conf objects map. As same destinstion can be added for multiple type, uniquness is needed for the map key.
 				switch t := monitoringObject.Object.(type) {
 				case *proto.MonitoringObject_Pingdest:
-					client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"] = &nmonclient.MonObject{
+					client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"] = &nmonclient.MonObject{
 						ConfigurationUpdatetime: time.Now().UnixNano(),
 						Object:                  monitoringObject,
 					}
 					// Configuration checks
 					// Check interval
-					if client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval < 100 {
-						client.Logging.Warnf("monclient:%v, interval for ping object:%v is too low", monitoringObject.GetPingdest().GetDestination(), client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval)
-						client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval = 100
-					} else if client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval > 60000 {
-						client.Logging.Warnf("monclient:%v, interval for ping object:%v is too high", monitoringObject.GetPingdest().GetDestination(), client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval)
-						client.MonObecjts[monitoringObject.GetPingdest().GetDestination()+"-ping"].Object.GetPingdest().Interval = 60000
+					if client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval < 100 {
+						client.Logging.Warnf("monclient:%v, interval for ping object:%v is too low", monitoringObject.GetPingdest().GetDestination(), client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval)
+						client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval = 100
+					} else if client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval > 60000 {
+						client.Logging.Warnf("monclient:%v, interval for ping object:%v is too high", monitoringObject.GetPingdest().GetDestination(), client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval)
+						client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval = 60000
 					}
 				case *proto.MonitoringObject_Resolvedest:
-					client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"] = &nmonclient.MonObject{
+					client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"] = &nmonclient.MonObject{
 						ConfigurationUpdatetime: time.Now().UnixNano(),
 						Object:                  monitoringObject,
 					}
 					// Configuration checks
 					// Check interval
-					if client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval < 3000 {
-						client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval = 3000
-						client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too low", monitoringObject.GetResolvedest().GetDestination(), client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval)
-					} else if client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval > 60000 {
-						client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too high", monitoringObject.GetResolvedest().GetDestination(), client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval)
-						client.MonObecjts[monitoringObject.GetResolvedest().GetDestination()+"-resolve"].Object.GetResolvedest().Interval = 60000
+					if client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval < 3000 {
+						client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval = 3000
+						client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too low", monitoringObject.GetResolvedest().GetDestination(), client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval)
+					} else if client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval > 60000 {
+						client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too high", monitoringObject.GetResolvedest().GetDestination(), client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval)
+						client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval = 60000
 					}
 				case *proto.MonitoringObject_Tracedest:
-					client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"] = &nmonclient.MonObject{
+					client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"] = &nmonclient.MonObject{
 						ConfigurationUpdatetime: time.Now().UnixNano(),
 						Object:                  monitoringObject,
 					}
 					// Configuration checks
 					// Check interval
-					if client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval < 60000 {
-						client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval = 60000
-						client.Logging.Warnf("monclient:%v, interval for trace object:%v is too low", monitoringObject.GetTracedest().GetDestination(), client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval)
-					} else if client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval > 1800000 {
-						client.Logging.Warnf("monclient:%v, interval for trace object:%v is too high", monitoringObject.GetTracedest().GetDestination(), client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval)
-						client.MonObecjts[monitoringObject.GetTracedest().GetDestination()+"-trace"].Object.GetTracedest().Interval = 1800000
+					if client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval < 60000 {
+						client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval = 60000
+						client.Logging.Warnf("monclient:%v, interval for trace object:%v is too low", monitoringObject.GetTracedest().GetDestination(), client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval)
+					} else if client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval > 1800000 {
+						client.Logging.Warnf("monclient:%v, interval for trace object:%v is too high", monitoringObject.GetTracedest().GetDestination(), client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval)
+						client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval = 1800000
 					}
 				case nil:
 					// The field is not set.

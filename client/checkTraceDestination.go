@@ -90,6 +90,7 @@ func CheckTraceDestination(tracedest *MonObject, c *NmonClient) {
 			close(intstatschannel)
 			exit = true
 		case <-interval.C:
+			tracedest.ThreadupdateTime = time.Now().UnixNano()
 			_, err = traceroute.Traceroute(tracedest.Object.GetTracedest().GetDestination(), &options, intstatschannel)
 			if err != nil {
 				c.Logging.Errorf("tracer:%v error for tracedest:%v", err, tracedest.Object.GetTracedest().GetDestination())

@@ -19,7 +19,11 @@ func CheckPingDestination(pingdest *MonObject, c *NmonClient) {
 		return
 	}
 	pinger.SetLogger(c.Logging)
+	pinger.OnSend = func(pkt *ping.Packet) {
+		pingdest.ThreadupdateTime = time.Now().UnixNano()
+	}
 	pinger.OnRecv = func(pkt *ping.Packet) {
+		pingdest.ThreadupdateTime = time.Now().UnixNano()
 		stat := &proto.StatsObject{
 			Client:    c.StatsClient,
 			Timestamp: time.Now().UnixNano(),

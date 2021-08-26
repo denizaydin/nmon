@@ -22,7 +22,7 @@ func CheckResolveDestination(resolvedest *MonObject, c *NmonClient) {
 			exit = true
 		case <-interval.C:
 			resolvedest.ThreadupdateTime = time.Now().UnixNano()
-			c.Logging.Tracef("resolver:%v interval:%v", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond)
+			c.Logging.Tracef("resolver:%v interval:%v, threadupdatetime:%v", resolvedest.Object.GetResolvedest().GetDestination(), time.Duration(resolvedest.Object.GetResolvedest().Interval)*time.Millisecond, resolvedest.ThreadupdateTime)
 			if resolvedest.Object.GetResolvedest().ResolveServer != "" {
 				c.Logging.Tracef("resolver:%v starting resolve using resolver:%v ", resolvedest.Object.GetResolvedest().GetDestination(), resolvedest.Object.GetResolvedest().ResolveServer)
 				r := &net.Resolver{
