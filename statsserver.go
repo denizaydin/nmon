@@ -343,9 +343,9 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 	}
 	s.Logging.Infof("statsserver: new client stats from ip:%v net:%v", clientIP, clientNet)
 	if net.ParseIP(clientIP).IsGlobalUnicast() && !net.ParseIP(clientIP).IsPrivate() {
-		s.Logging.Debugf("statsserver: retriving the client:%v information from ripe", clientIP)
 		_, ok = s.IPASN[clientNet]
 		if !ok {
+			s.Logging.Debugf("statsserver: retriving the client:%v information from ripe", clientIP)
 			var p ripe.Prefix
 			p.Set(clientNet)
 			p.GetData()
@@ -431,6 +431,6 @@ func main() {
 		statsserver.Logging.Fatalf("statsserver: error creating the server %v", err)
 	}
 	proto.RegisterStatsServer(grpcServer, statsserver)
-	statsserver.Logging.Infof("statsserver: started server at:%v", listener.Addr())
+	statsserver.Logging.Infof("statsserver: grpc started server at:%v", listener.Addr())
 	grpcServer.Serve(listener)
 }
