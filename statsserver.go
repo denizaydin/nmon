@@ -19,9 +19,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	proto "github.com/denizaydin/nmon/api"
@@ -124,20 +122,20 @@ func (collector *promStatsCollector) Collect(ch chan<- prometheus.Metric) {
 	case *proto.StatsObject_Clientstat:
 		//ch <- *
 		statsserver.Logging.Tracef("statsserver: prom collector received client stat:%v", stat)
-		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.clientMetric, prometheus.GaugeValue, float64(stat.NmonStat.GetClientstat().GetNumberOfMonObjects()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.ClientNet))
+		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.clientMetric, prometheus.GaugeValue, float64(stat.NmonStat.GetClientstat().GetNumberOfMonObjects()), stat.ClientName, stat.ClientAS, stat.ClientASHolder, stat.ClientNet))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write client stat:%v", ps)
 	case *proto.StatsObject_Pingstat:
 		statsserver.Logging.Tracef("statsserver: prom collector received ping stat:%v", stat)
-		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.pingMetric, prometheus.GaugeValue, float64(stat.NmonStat.GetPingstat().GetRtt()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.ClientNet, stat.NmonStat.GetPingstat().GetDestination()))
+		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.pingMetric, prometheus.GaugeValue, float64(stat.NmonStat.GetPingstat().GetRtt()), stat.ClientName, stat.ClientAS, stat.ClientASHolder, stat.ClientNet, stat.NmonStat.GetPingstat().GetDestination()))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write ping stat:%v", ps)
 	case *proto.StatsObject_Resolvestat:
 		statsserver.Logging.Tracef("statsserver: prom collector received resolve stat:%v", stat)
-		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.resolveRTT, prometheus.GaugeValue, float64(stat.NmonStat.GetResolvestat().GetRtt()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.ClientNet, stat.NmonStat.GetResolvestat().GetDestination(), stat.NmonStat.GetResolvestat().Resolver))
+		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.resolveRTT, prometheus.GaugeValue, float64(stat.NmonStat.GetResolvestat().GetRtt()), stat.ClientName, stat.ClientAS, stat.ClientASHolder, stat.ClientNet, stat.NmonStat.GetResolvestat().GetDestination(), stat.NmonStat.GetResolvestat().Resolver))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write resolve rtt stat:%v", ps)
-		ps = prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.resolvedIP, prometheus.GaugeValue, IP2long(stat.NmonStat.GetResolvestat().GetResolvedip()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.ClientNet, stat.NmonStat.GetResolvestat().GetDestination(), stat.NmonStat.GetResolvestat().Resolver))
+		ps = prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.resolvedIP, prometheus.GaugeValue, IP2long(stat.NmonStat.GetResolvestat().GetResolvedip()), stat.ClientName, stat.ClientAS, stat.ClientASHolder, stat.ClientNet, stat.NmonStat.GetResolvestat().GetDestination(), stat.NmonStat.GetResolvestat().Resolver))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write resolve resolved IP stat:%v", ps)
 	case *proto.StatsObject_Tracestat:
@@ -386,18 +384,18 @@ func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 func main() {
 	statsserver.Logging.Infof("statsserver: server is initialized with parameters:%v", statsserver)
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs)
-	go func() {
-		s := <-sigs
-		switch s {
-		case syscall.SIGURG:
-			statsserver.Logging.Infof("statsserver: received unhandled %v signal from os:", s)
-		default:
-			statsserver.Logging.Infof("statsserver: received %v signal from os,exiting", s)
-			os.Exit(1)
-		}
-	}()
+	/* 	sigs := make(chan os.Signal, 1)
+	   	signal.Notify(sigs)
+	   	go func() {
+	   		s := <-sigs
+	   		switch s {
+	   		case syscall.SIGURG:
+	   			statsserver.Logging.Infof("statsserver: received unhandled %v signal from os:", s)
+	   		default:
+	   			statsserver.Logging.Infof("statsserver: received %v signal from os,exiting", s)
+	   			os.Exit(1)
+	   		}
+	   	}() */
 
 	go func() {
 		statsserver.Logging.Infof("statsserver: prometheus server is initialized with parameters:%+v", statsserver.PromMetricServerAddr)
