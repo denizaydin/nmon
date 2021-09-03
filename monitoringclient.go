@@ -53,6 +53,7 @@ func init() {
 		IsConfigClientConnected: false,
 		StatsClient:             &proto.Client{},
 		IsStatsClientConnected:  false,
+		Statschannel:            make(chan *proto.StatsObject, 100),
 		MonObecjts:              map[string]*nmonclient.MonObject{},
 		MonObjectScanTimer:      &time.Ticker{},
 		Logging:                 &logrus.Logger{},
@@ -98,9 +99,9 @@ func init() {
 	if client.ConfigClient.Name == "" {
 		hostname, err := os.Hostname()
 		if err != nil {
-			client.Logging.Fatalf("monclient client name is required and we can not get the hostname")
+			client.Logging.Fatalf("client name is required and we can not get the hostname")
 		} else {
-			client.Logging.Warnf("monclient no client name is given, setting clientname to hostname:%v", hostname)
+			client.Logging.Warnf("no client name is given, setting clientname to hostname:%v", hostname)
 			client.ConfigClient.Name = hostname
 		}
 	}
@@ -132,7 +133,7 @@ func getMonitoringObjects(client *nmonclient.NmonClient) {
 	client.Logging.Tracef("retriving configuration from:%v", configServer)
 	for {
 		if !client.IsConfigClientConnected {
-			client.Logging.Infof("monclient tring to connect config server:%v with name:%v and id:%v", *configServer, client.ConfigClient.GetName(), client.ConfigClient.GetId())
+			client.Logging.Infof("tring to connect config server:%v with name:%v and id:%v", *configServer, client.ConfigClient.GetName(), client.ConfigClient.GetId())
 			configconn, err := grpc.Dial(*configServer, grpc.WithInsecure(), grpc.WithKeepaliveParams(keepalive.ClientParameters{
 				Time:                1 * time.Second, // send pings every 10 seconds if there is no activity
 				Timeout:             time.Second,     // wait 1 second for ping ack before considering the connection dead
@@ -150,30 +151,30 @@ func getMonitoringObjects(client *nmonclient.NmonClient) {
 				  }
 				}]}`), grpc.WithBlock())
 			if err != nil {
-				client.Logging.Errorf("monclient could not connect to config service: %v, waiting for 10sec to retry", err)
+				client.Logging.Errorf("could not connect to config service: %v, waiting for 10sec to retry", err)
 				time.Sleep(10 * time.Second)
 				break
 			}
-			client.Logging.Debug("monclient connected to the configuration server, registering")
+			client.Logging.Debug("connected to the configuration server, registering")
 			configclient = proto.NewConfigServerClient(configconn)
 			stream, err := configclient.CreateStream(context.Background(), &proto.Connect{
 				Client: client.ConfigClient,
 			})
 			if err != nil {
-				client.Logging.Errorf("monclient configuration service registration failed: %v, waiting for 10sec to retry", err)
+				client.Logging.Errorf("configuration service registration failed: %v, waiting for 10sec to retry", err)
 				time.Sleep(10 * time.Second)
 				break
 			}
 			client.IsConfigClientConnected = true
-			client.Logging.Info("monclient configuration service is registered, waiting for monitoring object to be streamed")
+			client.Logging.Info("configuration service is registered, waiting for monitoring object to be streamed")
 			for {
 				monitoringObject, err := stream.Recv()
 				if err != nil {
-					client.Logging.Errorf("monclient error reading configuration message: %v", err)
+					client.Logging.Errorf("error reading configuration message: %v", err)
 					client.IsConfigClientConnected = false
 					break
 				}
-				client.Logging.Debugf("monclient received configuration message %s", monitoringObject)
+				client.Logging.Debugf("received configuration message %s", monitoringObject)
 				// adding configuration objects into conf objects map. As same destinstion can be added for multiple type, uniquness is needed for the map key.
 				switch t := monitoringObject.Object.(type) {
 				case *proto.MonitoringObject_Pingdest:
@@ -184,10 +185,10 @@ func getMonitoringObjects(client *nmonclient.NmonClient) {
 					// Configuration checks
 					// Check interval
 					if client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval < 100 {
-						client.Logging.Warnf("monclient:%v, interval for ping object:%v is too low", monitoringObject.GetPingdest().GetName(), client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval)
+						client.Logging.Warnf("%v, interval for ping object:%v is too low", monitoringObject.GetPingdest().GetName(), client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval)
 						client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval = 100
 					} else if client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval > 60000 {
-						client.Logging.Warnf("monclient:%v, interval for ping object:%v is too high", monitoringObject.GetPingdest().GetName(), client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval)
+						client.Logging.Warnf("%v, interval for ping object:%v is too high", monitoringObject.GetPingdest().GetName(), client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval)
 						client.MonObecjts[monitoringObject.GetPingdest().GetName()+"-ping"].Object.GetPingdest().Interval = 60000
 					}
 				case *proto.MonitoringObject_Resolvedest:
@@ -199,9 +200,9 @@ func getMonitoringObjects(client *nmonclient.NmonClient) {
 					// Check interval
 					if client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval < 3000 {
 						client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval = 3000
-						client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too low", monitoringObject.GetResolvedest().GetName(), client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval)
+						client.Logging.Warnf("%v, interval for resolve object:%v is too low", monitoringObject.GetResolvedest().GetName(), client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval)
 					} else if client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval > 60000 {
-						client.Logging.Warnf("monclient:%v, interval for resolve object:%v is too high", monitoringObject.GetResolvedest().GetName(), client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval)
+						client.Logging.Warnf("%v, interval for resolve object:%v is too high", monitoringObject.GetResolvedest().GetName(), client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval)
 						client.MonObecjts[monitoringObject.GetResolvedest().GetName()+"-resolve"].Object.GetResolvedest().Interval = 60000
 					}
 				case *proto.MonitoringObject_Tracedest:
@@ -213,86 +214,84 @@ func getMonitoringObjects(client *nmonclient.NmonClient) {
 					// Check interval
 					if client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval < 60000 {
 						client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval = 60000
-						client.Logging.Warnf("monclient:%v, interval for trace object:%v is too low", monitoringObject.GetTracedest().GetName(), client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval)
+						client.Logging.Warnf("%v, interval for trace object:%v is too low", monitoringObject.GetTracedest().GetName(), client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval)
 					} else if client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval > 1800000 {
-						client.Logging.Warnf("monclient:%v, interval for trace object:%v is too high", monitoringObject.GetTracedest().GetName(), client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval)
+						client.Logging.Warnf("%v, interval for trace object:%v is too high", monitoringObject.GetTracedest().GetName(), client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval)
 						client.MonObecjts[monitoringObject.GetTracedest().GetName()+"-trace"].Object.GetTracedest().Interval = 1800000
 					}
 				case nil:
 					// The field is not set.
 				default:
-					client.Logging.Errorf("monclient unexpected monitoring object type %T", t)
+					client.Logging.Errorf("unexpected monitoring object type %T", t)
 				}
 			}
 
 		}
-		client.Logging.Errorf("monclient configuration service failed, waiting for 3sec to retry")
-		time.Sleep(3 * time.Second)
+		client.Logging.Errorf("configuration service failed, waiting for 3sec to retry")
+		time.Sleep(1 * time.Second)
 	}
 }
 func connectStatsServer(client *nmonclient.NmonClient) {
-	client.Logging.Tracef("trying to connect stats server:%v", statsServer)
-	for {
-		if !client.IsStatsClientConnected {
-			client.Logging.Infof("tring to connect statistic server:%v with name:%v and id:%v", *statsServer, client.StatsClient.GetName(), client.StatsClient.GetId())
-			conn, err := grpc.Dial(*statsServer, grpc.WithInsecure(), grpc.WithKeepaliveParams(keepalive.ClientParameters{
-				Time:                1 * time.Second, // send pings every 10 seconds if there is no activity
-				Timeout:             time.Second,     // wait 1 second for ping ack before considering the connection dead
-				PermitWithoutStream: true,            // send pings even without active streams
-			}), grpc.WithDefaultServiceConfig(`{
-				"methodConfig": [{
-				  "name": [{"service": "nmon client service"}],
-				  "waitForReady": true,
-				  "retryPolicy": {
-					  "MaxAttempts": 4,
-					  "InitialBackoff": "1s",
-					  "MaxBackoff": "6s",
-					  "BackoffMultiplier": 1.5,
-					  "RetryableStatusCodes": [ "UNAVAILABLE" ]
-				  }
-				}]}`), grpc.WithBlock())
-			if err != nil {
-				client.Logging.Errorf("could not connect to statistic service:%v, waiting for 10sec to retry", err)
-				time.Sleep(10 * time.Second)
-				client.IsStatsClientConnected = false
-				break
-			}
-			client.IsStatsClientConnected = true
-			client.Logging.Infof("connected to the statistic server:%v with name:%v and id:%v", *statsServer, client.StatsClient.GetName(), client.StatsClient.GetId())
-			client.StatsConnClient = proto.NewStatsClient(conn)
-			stream, err := client.StatsConnClient.RecordStats(context.Background())
-			if err != nil {
-				//TODO: changling log
-				client.Logging.Errorf("statistic service registration failed:%v, waiting for 10sec to retry", err)
-				time.Sleep(10 * time.Second)
-				break
-			}
-			for {
-				msg := &proto.StatsObject{
-					Client:    client.StatsClient,
-					Timestamp: time.Now().UnixNano(),
-					Object: &proto.StatsObject_Clientstat{
-						Clientstat: &proto.ClientStat{
-							NumberOfMonObjects: int32(len(client.MonObecjts)),
-						},
-					},
-				}
-				if err := stream.Send(msg); err != nil {
-					client.Logging.Errorf("can not send client stats:%v, err:%v", stream, err)
-					time.Sleep(1 * time.Second)
+	client.Logging.Infof("trying to connect stats server:%v", statsServer)
+	go func() {
+		for {
+			if !client.IsStatsClientConnected {
+				client.Logging.Debugf("tring to connect statistic server:%v with name:%v and id:%v", *statsServer, client.StatsClient.GetName(), client.StatsClient.GetId())
+				conn, err := grpc.Dial(*statsServer, grpc.WithInsecure(), grpc.WithKeepaliveParams(keepalive.ClientParameters{
+					Time:                1 * time.Second, // send pings every 10 seconds if there is no activity
+					Timeout:             time.Second,     // wait 1 second for ping ack before considering the connection dead
+					PermitWithoutStream: true,            // send pings even without active streams
+				}), grpc.WithDefaultServiceConfig(`{
+			"methodConfig": [{
+			  "name": [{"service": "nmon client service"}],
+			  "waitForReady": true,
+			  "retryPolicy": {
+				  "MaxAttempts": 4,
+				  "InitialBackoff": "1s",
+				  "MaxBackoff": "6s",
+				  "BackoffMultiplier": 1.5,
+				  "RetryableStatusCodes": [ "UNAVAILABLE" ]
+			  }
+			}]}`), grpc.WithBlock())
+				if err != nil {
+					client.Logging.Errorf("could not connect to statistic service:%v, waiting for 10sec to retry", err)
 					client.IsStatsClientConnected = false
 					break
 				}
-				client.Logging.Infof("sent client stats update to the server, timestamp:%v and number of monitoring objects is:%v", msg.GetTimestamp(), int32(len(client.MonObecjts)))
-				time.Sleep(1 * time.Second)
+				client.Logging.Debugf("connected to the statistic server:%v with name:%v and id:%v", *statsServer, client.StatsClient.GetName(), client.StatsClient.GetId())
+				client.StatsConnClient = proto.NewStatsClient(conn)
+				client.IsStatsClientConnected = true
 			}
-			client.Logging.Error("sending client stats data failed, waiting for 10sec to retry")
+			client.Logging.Debug("cheking statistic server connection in 10sec")
 			time.Sleep(10 * time.Second)
+		}
+	}()
+
+	for {
+		select {
+		case stat := <-client.Statschannel:
+			client.Logging.Tracef("received client statistics:%v", stat)
+			if client.IsStatsClientConnected {
+				stream, err := client.StatsConnClient.RecordStats(context.Background())
+				if err != nil {
+					client.Logging.Errorf("statistic service registration failed:%v", err)
+					client.IsStatsClientConnected = false
+					break
+				}
+				if err := stream.Send(stat); err != nil {
+					client.Logging.Errorf("can not send stats:%v, err:%v", stream, err)
+					client.IsStatsClientConnected = false
+					break
+				}
+				client.Logging.Tracef("sent client statistics:%v", stat)
+				break
+			}
+			client.Logging.Tracef("statistic server is not redy, can not sent client statistics:%v", stat)
 		}
 	}
 }
 func main() {
-	client.Logging.Infof("monclient client is initialized with parameters:%v", client)
+	client.Logging.Infof("client is initialized with parameters:%v", client)
 	go getMonitoringObjects(client)
 	go connectStatsServer(client)
 

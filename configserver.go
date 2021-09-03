@@ -78,7 +78,7 @@ func init() {
 	// Only log the warning severity or above.
 	logLevel := "info"
 	flag.StringVar(&logLevel, "loglevel", "info", "disable,info, error, warning,debug or trace")
-	flag.StringVar(&server.ServerAddr, "addr", "localhost:8081", "server net address")
+	flag.StringVar(&server.ServerAddr, "addr", "localhost:8080", "server net address")
 	flag.IntVar(&server.ClientUpdateTime, "updatetime", 5, "configuration update time in seconds, use lower values for better results as we are using grpc streaming")
 	flag.StringVar(&server.DataFileName, "datafilename", "dataConfig.json", "monitoring objects data file name as json")
 	flag.StringVar(&server.DataFilePath, "datafilepath", ".", "monitoring objects data file path, default is current directory")

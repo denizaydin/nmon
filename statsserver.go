@@ -42,10 +42,11 @@ var (
 
 //Stat - Holds varibles of the received stat
 type Stat struct {
-	ClientName    string
-	ClientAS      float64
-	CientASHolder string
-	NmonStat      *proto.StatsObject
+	ClientName     string
+	ClientAS       string
+	ClientASHolder string
+	ClientNet      string
+	NmonStat       *proto.StatsObject
 	//StatsGRPCServerAddr - holds grpc server net address
 }
 
@@ -56,10 +57,10 @@ type StatsServer struct {
 	StatsGRPCServerAddr string
 	//PromMetricServerAddr - holds prometheous metrics server net address
 	PromMetricServerAddr string
-	//IpASN - holds ip to asn mapping for caching
-	IpASN map[string]float64
-	//Server.IpHolder - holds ip to owner, holder mapping for caching
-	IpHolder      map[string]string
+	//IPASN - holds ip to asn mapping for caching
+	IPASN map[string]float64
+	//Server.IPHOLDER - holds ip to owner, holder mapping for caching
+	IPHOLDER      map[string]string
 	PromCollector *promStatsCollector
 	//stats channel to promeheous collecter
 	PromCollectorChannel chan *Stat
@@ -78,27 +79,27 @@ func newPromStatsCollector() *promStatsCollector {
 	return &promStatsCollector{
 		clientMetric: prometheus.NewDesc("clientMetric",
 			"Number of monitoring objects count of the client",
-			[]string{"clientname", "clientas"}, nil,
+			[]string{"clientname", "clientas", "clientholder", "clientnet"}, nil,
 		),
 		pingMetric: prometheus.NewDesc("pingMetric",
 			"Ping RTT for the destination in msec",
-			[]string{"clientname", "clientas", "clientholder", "destination"}, nil,
+			[]string{"clientname", "clientas", "clientholder", "clientnet", "destination"}, nil,
 		),
 		resolveRTT: prometheus.NewDesc("resolveRTT",
 			"DNS Resolve RTT for the destination in msec",
-			[]string{"clientname", "clientas", "clientholder", "destination", "resolver"}, nil,
+			[]string{"clientname", "clientas", "clientholder", "clientnet", "destination", "resolver"}, nil,
 		),
 		resolvedIP: prometheus.NewDesc("resolvedIP",
 			"Resolved IP address for the destination in float",
-			[]string{"clientname", "clientas", "clientholder", "destination", "resolver"}, nil,
+			[]string{"clientname", "clientas", "clientholder", "clientnet", "destination", "resolver"}, nil,
 		),
 		traceHopRTT: prometheus.NewDesc("traceHopRTT",
 			"RTT for each hop during trace to destination",
-			[]string{"clientname", "clientas", "clientholder", "destination", "hopas", "hopholder", "hopip"}, nil,
+			[]string{"clientname", "clientas", "clientholder", "clientnet", "destination", "hopas", "hopholder", "hopip"}, nil,
 		),
 		traceHopTTL: prometheus.NewDesc("traceHopTTL",
 			"TTL for each hop during trace to destination",
-			[]string{"clientname", "clientas", "clientholder", "destination", "hopas", "hopholder", "hopip"}, nil,
+			[]string{"clientname", "clientas", "clientholder", "clientnet", "destination", "hopas", "hopholder", "hopip"}, nil,
 		),
 	}
 }
@@ -115,15 +116,6 @@ func (collector *promStatsCollector) Describe(ch chan<- *prometheus.Desc) {
 
 }
 
-func Ip2long(ipstr string) float64 {
-	ip := net.ParseIP(ipstr)
-	if ip == nil {
-		return 0
-	}
-	ip = ip.To4()
-	return float64(binary.BigEndian.Uint32(ip))
-}
-
 func (collector *promStatsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	stat, _ := <-statsserver.PromCollectorChannel
@@ -132,56 +124,58 @@ func (collector *promStatsCollector) Collect(ch chan<- prometheus.Metric) {
 	case *proto.StatsObject_Clientstat:
 		//ch <- *
 		statsserver.Logging.Tracef("statsserver: prom collector received client stat:%v", stat)
-		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.clientMetric, prometheus.GaugeValue, float64(stat.NmonStat.GetClientstat().GetNumberOfMonObjects()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS)))
+		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.clientMetric, prometheus.GaugeValue, float64(stat.NmonStat.GetClientstat().GetNumberOfMonObjects()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.ClientNet))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write client stat:%v", ps)
 	case *proto.StatsObject_Pingstat:
 		statsserver.Logging.Tracef("statsserver: prom collector received ping stat:%v", stat)
-		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.pingMetric, prometheus.GaugeValue, float64(stat.NmonStat.GetPingstat().GetRtt()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.CientASHolder, stat.NmonStat.GetPingstat().GetDestination()))
+		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.pingMetric, prometheus.GaugeValue, float64(stat.NmonStat.GetPingstat().GetRtt()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.ClientNet, stat.NmonStat.GetPingstat().GetDestination()))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write ping stat:%v", ps)
 	case *proto.StatsObject_Resolvestat:
 		statsserver.Logging.Tracef("statsserver: prom collector received resolve stat:%v", stat)
-		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.resolveRTT, prometheus.GaugeValue, float64(stat.NmonStat.GetResolvestat().GetRtt()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.CientASHolder, stat.NmonStat.GetResolvestat().GetDestination(), stat.NmonStat.GetResolvestat().Resolver))
+		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.resolveRTT, prometheus.GaugeValue, float64(stat.NmonStat.GetResolvestat().GetRtt()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.ClientNet, stat.NmonStat.GetResolvestat().GetDestination(), stat.NmonStat.GetResolvestat().Resolver))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write resolve rtt stat:%v", ps)
-		ps = prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.resolvedIP, prometheus.GaugeValue, Ip2long(stat.NmonStat.GetResolvestat().GetResolvedip()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.CientASHolder, stat.NmonStat.GetResolvestat().GetDestination(), stat.NmonStat.GetResolvestat().Resolver))
+		ps = prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.resolvedIP, prometheus.GaugeValue, IP2long(stat.NmonStat.GetResolvestat().GetResolvedip()), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.ClientNet, stat.NmonStat.GetResolvestat().GetDestination(), stat.NmonStat.GetResolvestat().Resolver))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write resolve resolved IP stat:%v", ps)
 	case *proto.StatsObject_Tracestat:
 		statsserver.Logging.Tracef("statsserver: prom collector received trace stat:%v", stat)
-		ip := stat.NmonStat.GetTracestat().GetHopIP()
-		_, ipnet, neterr := net.ParseCIDR(ip + "/24")
+		hopIP := stat.NmonStat.GetTracestat().GetHopIP()
+		hopAs := "unknown"
+		hopHolder := "unknown"
+		hopNet := hopIP + "/24"
+		_, ipnet, neterr := net.ParseCIDR(hopIP + "/24")
 		if neterr == nil {
-			ip = ipnet.String()
-			statsserver.Logging.Tracef("statsserver: changed client as storage info to:%v", ip)
+			hopNet = ipnet.String()
 		}
-		_, ok := statsserver.IpASN[ip]
-		if net.ParseIP(ip).IsGlobalUnicast() {
+		statsserver.Logging.Infof("statsserver: new hop stats for ip:%v net:%v", hopIP, hopNet)
+		if net.ParseIP(hopIP).IsGlobalUnicast() && !net.ParseIP(hopIP).IsPrivate() {
+			statsserver.Logging.Debugf("statsserver: retriving the hop:%v information from ripe", hopIP)
+			_, ok := statsserver.IPASN[hopNet]
 			if !ok {
-				statsserver.IpASN[ip] = 0
-				statsserver.IpHolder[ip] = "unknown"
 				var p ripe.Prefix
-				p.Set(stat.NmonStat.GetTracestat().GetHopIP())
+				p.Set(hopNet)
 				p.GetData()
-				statsserver.Logging.Debugf("statsserver: got the tracehop information from ripe:%v", p)
+				statsserver.Logging.Debugf("statsserver: got the hop information from ripe:%v", p)
 				data, _ := p.Data["data"].(map[string]interface{})
 				asns := data["asns"].([]interface{})
 				//TODO: can it more than one ASN per prefix?
 				for _, h := range asns {
-					statsserver.IpHolder[ip] = h.(map[string]interface{})["holder"].(string)
-					statsserver.IpASN[ip] = h.(map[string]interface{})["asn"].(float64)
+					statsserver.IPHOLDER[hopNet] = h.(map[string]interface{})["holder"].(string)
+					statsserver.IPASN[hopNet] = h.(map[string]interface{})["asn"].(float64)
 				}
 			}
-		} else {
-			statsserver.IpHolder[ip] = "private"
-			statsserver.IpASN[ip] = 0
+			hopAs = fmt.Sprintf("%f", statsserver.IPHOLDER[hopNet])
+			hopHolder = statsserver.IPHOLDER[hopNet]
 		}
-		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.traceHopRTT, prometheus.GaugeValue, float64(stat.NmonStat.GetTracestat().HopRTT), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.CientASHolder, stat.NmonStat.GetTracestat().GetDestination(), fmt.Sprintf("%f", statsserver.IpASN[stat.NmonStat.GetTracestat().GetHopIP()]), statsserver.IpHolder[stat.NmonStat.GetTracestat().GetHopIP()], stat.NmonStat.GetTracestat().GetHopIP()))
+
+		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.traceHopRTT, prometheus.GaugeValue, float64(stat.NmonStat.GetTracestat().HopRTT), stat.ClientName, stat.ClientNet, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.NmonStat.GetTracestat().GetDestination(), hopAs, hopHolder, stat.NmonStat.GetTracestat().GetHopIP()))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write trace hop rtt stat:%v", ps)
 
-		ps = prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.traceHopTTL, prometheus.GaugeValue, float64(stat.NmonStat.GetTracestat().HopTTL), stat.ClientName, fmt.Sprintf("%f", stat.ClientAS), stat.CientASHolder, stat.NmonStat.GetTracestat().GetDestination(), fmt.Sprintf("%f", statsserver.IpASN[stat.NmonStat.GetTracestat().GetHopIP()]), statsserver.IpHolder[stat.NmonStat.GetTracestat().GetHopIP()], stat.NmonStat.GetTracestat().GetHopIP()))
+		ps = prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.traceHopTTL, prometheus.GaugeValue, float64(stat.NmonStat.GetTracestat().HopTTL), stat.ClientName, stat.ClientNet, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.NmonStat.GetTracestat().GetDestination(), hopAs, hopHolder, stat.NmonStat.GetTracestat().GetHopIP()))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write trace hop ttl stat:%v", ps)
 
@@ -273,8 +267,8 @@ func init() {
 		Logging:              &logrus.Logger{},
 		StatsGRPCServerAddr:  "",
 		PromMetricServerAddr: "",
-		IpASN:                map[string]float64{},
-		IpHolder:             map[string]string{},
+		IPASN:                map[string]float64{},
+		IPHOLDER:             map[string]string{},
 	}
 	// Log as JSON instead of the default ASCII formatter.
 	statsserver.Logging = logrus.New()
@@ -312,68 +306,77 @@ func init() {
 
 	statsserver.PromCollector = newPromStatsCollector()
 	prometheus.MustRegister(statsserver.PromCollector)
-	statsserver.IpASN = make(map[string]float64)
-	statsserver.IpHolder = make(map[string]string)
-	statsserver.PromCollectorChannel = make(chan *Stat)
+	statsserver.IPASN = make(map[string]float64)
+	statsserver.IPHOLDER = make(map[string]string)
+	statsserver.PromCollectorChannel = make(chan *Stat, 100)
 	statsserver.Logging.Info("running nmon stats service")
+}
+
+//IP2long - returng ip address as float64 for prometheus metric recording
+func IP2long(ipstr string) float64 {
+	ip := net.ParseIP(ipstr)
+	if ip == nil {
+		return 0
+	}
+	ip = ip.To4()
+	return float64(binary.BigEndian.Uint32(ip))
 }
 
 //RecordStats - Client streaming process, clients are send stats with this method.
 //Recives client statistic
 func (s *StatsServer) RecordStats(stream proto.Stats_RecordStatsServer) error {
 	pr, ok := peer.FromContext(stream.Context())
-	if !ok {
-		s.Logging.Warningf("statsserver: can not get client ip address:%v", pr.Addr)
+	//initial values
+	clientIP := "127.0.0.1:1"
+	clientAs := "unknown"
+	clientHolder := "unknown"
+	clientNet := clientIP + "/24"
+	if ok {
+		s.Logging.Tracef("statsserver: get client ip address:%v", pr.Addr)
+		clientIP = strings.Split(pr.Addr.String(), ":")[0]
 	}
-	s.Logging.Infof("statsserver: new client stats from ip:%v", pr.Addr)
-	// TODO: for testing purposes from local computer,
 
-	clientip := strings.Split(pr.Addr.String(), ":")
-	_, ipnet, neterr := net.ParseCIDR(clientip[0] + "/24")
-	ip := pr.Addr.String()
+	s.Logging.Debugf("statsserver: get statistic from the ip address:%v", clientIP)
+	_, ipnet, neterr := net.ParseCIDR(clientIP + "/24")
 	if neterr == nil {
-		ip = ipnet.String()
-		s.Logging.Tracef("statsserver: changed client as storage info to:%v", ip)
+		clientNet = ipnet.String()
 	}
-	s.Logging.Debugf("statsserver: set client as storage info to:%v", ip)
-	if net.ParseIP(ip).IsGlobalUnicast() {
-		s.Logging.Debugf("statsserver: retring client:%v info from ripe", pr.Addr)
-		_, ok = s.IpASN[ip]
+	s.Logging.Infof("statsserver: new client stats from ip:%v net:%v", clientIP, clientNet)
+	if net.ParseIP(clientIP).IsGlobalUnicast() && !net.ParseIP(clientIP).IsPrivate() {
+		s.Logging.Debugf("statsserver: retriving the client:%v information from ripe", clientIP)
+		_, ok = s.IPASN[clientNet]
 		if !ok {
-			s.IpASN[ip] = 0
-			s.IpHolder[ip] = "unknown"
 			var p ripe.Prefix
-			p.Set(clientip[0])
+			p.Set(clientNet)
 			p.GetData()
 			s.Logging.Debugf("statsserver: got the client information from ripe:%v", p)
 			data, _ := p.Data["data"].(map[string]interface{})
 			asns := data["asns"].([]interface{})
 			//TODO: can it more than one ASN per prefix?
 			for _, h := range asns {
-				s.IpHolder[ip] = h.(map[string]interface{})["holder"].(string)
-				s.IpASN[ip] = h.(map[string]interface{})["asn"].(float64)
+				s.IPHOLDER[clientNet] = h.(map[string]interface{})["holder"].(string)
+				s.IPASN[clientNet] = h.(map[string]interface{})["asn"].(float64)
 			}
 		}
-	} else {
-		s.Logging.Debugf("statsserver: setting client:%v info from to private", pr.Addr)
-		s.IpHolder[ip] = "private"
-		s.IpASN[ip] = 0
+		clientAs = fmt.Sprintf("%f", s.IPHOLDER[clientNet])
+		clientHolder = s.IPHOLDER[clientNet]
 	}
+
 	var err error
 	for {
 		receivedstat, err := stream.Recv()
 		if err == nil {
 			var stat = &Stat{
-				ClientName:    receivedstat.GetClient().GetName(),
-				ClientAS:      s.IpASN[ip],
-				CientASHolder: s.IpHolder[ip],
-				NmonStat:      &proto.StatsObject{},
+				ClientName:     receivedstat.GetClient().GetName(),
+				ClientAS:       clientAs,
+				ClientASHolder: clientHolder,
+				ClientNet:      clientNet,
+				NmonStat:       receivedstat,
 			}
-			s.Logging.Debugf("statsserver: received received stat:%v from the client:%v %v, relaying it to prometheus collector", receivedstat, receivedstat.GetClient().GetName(), receivedstat.GetClient().GetId())
-			stat.NmonStat = receivedstat
 			statsserver.PromCollectorChannel <- stat
+			s.Logging.Debugf("statsserver: received stat:%v from the client:%v %v, relayed it to prometheus collector", receivedstat, receivedstat.GetClient().GetName(), receivedstat.GetClient().GetId())
 		} else {
-			s.Logging.Errorf("statsserver: during reading client receivedstat request from:%v", err)
+			s.Logging.Errorf("statsserver: during reading client received stat request from:%v", err)
 			break
 		}
 	}
@@ -430,5 +433,4 @@ func main() {
 	proto.RegisterStatsServer(grpcServer, statsserver)
 	statsserver.Logging.Infof("statsserver: started server at:%v", listener.Addr())
 	grpcServer.Serve(listener)
-	select {}
 }

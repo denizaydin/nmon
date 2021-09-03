@@ -30,8 +30,6 @@ func CheckTraceDestination(tracedest *MonObject, c *NmonClient) {
 			break
 		}
 	}
-	interval := time.NewTimer(time.Duration(1 * time.Second))
-	c.Logging.Debugf("tracer:%v: will start with in 1sec", tracedest.Object.GetTracedest().GetName())
 	done := make(chan bool, 2)
 	var waitGroup sync.WaitGroup
 	var stream proto.Stats_RecordStatsClient
@@ -89,7 +87,7 @@ func CheckTraceDestination(tracedest *MonObject, c *NmonClient) {
 			c.Logging.Infof("tracer:%v: tracer stop request", tracedest.Object.GetTracedest().GetName())
 			close(intstatschannel)
 			exit = true
-		case <-interval.C:
+		default:
 			tracedest.ThreadupdateTime = time.Now().UnixNano()
 			c.Logging.Tracef("tracer:%v threadupdatetime:%v", tracedest.Object.GetTracedest().GetName(), tracedest.ThreadupdateTime)
 			_, err = traceroute.Traceroute(tracedest.Object.GetTracedest().GetDestination(), &options, intstatschannel)
@@ -97,7 +95,7 @@ func CheckTraceDestination(tracedest *MonObject, c *NmonClient) {
 				c.Logging.Errorf("tracer:%v error for tracedest:%v", err, tracedest.Object.GetTracedest().GetName())
 			}
 			intstatschannel = make(chan traceroute.TracerouteHop, 0)
-			interval = time.NewTimer(time.Duration(tracedest.Object.GetTracedest().Interval) * time.Millisecond)
+			time.Sleep(time.Duration(time.Duration(tracedest.Object.GetTracedest().Interval) * time.Millisecond))
 		}
 	}
 	done <- true

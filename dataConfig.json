@@ -1,68 +1,85 @@
-{
-    "pingdests": {
-        "www.trendyol.com": {
-            "destination": "www.trendyol.com",
-            "timeout": "3",
-            "interval": 3000,
-            "groups": {
-                "default": "default"
+    {
+        "pingdests": {
+            "google": {
+                "destination": "www.google.com",
+                "timeout": "3",
+                "interval": 3000,
+                "groups": {
+                    "default": "default"
+                }
+            },"8.8.8.8": {
+                "destination": "8.8.8.8",
+                "timeout": "3",
+                "interval": 3000,
+                "groups": {
+                    "default": "default"
+                }
+            },
+            "cisco": {
+                "destination": "www.cisco.com",
+                "timeout": "3",
+                "interval": 3000,
+                "groups": {
+                    "default": "default"
+                }
+            },
+            "yandex": {
+                "destination": "www.yandex.com",
+                "timeout": "3",
+                "interval": 3000,
+                "groups": {
+                    "default": "default"
+                }
+            },
+            "apple": {
+                "destination": "www.apple.com",
+                "timeout": "3",
+                "interval": 3000,
+                "groups": {
+                    "default": "default"
+                }
             }
-        },
-        "mars-dc-lb-vip": {
-            "destination": "89.32.124.100",
-            "timeout": "3",
-            "interval": 3000,
-            "groups": {
-                "default": "default"
-            }
-        },
-        "venus-dc-lb-vip": {
-            "destination": "89.42.34.100",
-            "timeout": "3",
-            "interval": 3000,
-            "groups": {
-                "default": "default"
-            }
-        },
-        "google": {
-            "destination": "www.google.com",
-            "timeout": "3",
-            "interval": 3000,
-            "groups": {
-                "default": "default"
-            }
-        },
-        "cisco": {
-            "destination": "www.cisco.com",
-            "timeout": "3",
-            "interval": 3000,
-            "groups": {
-                "default": "default"
-            }
-        },
-        "yandex": {
-            "destination": "www.yandex.com",
-            "timeout": "3",
-            "interval": 3000,
-            "groups": {
-                "default": "default"
-            }
-        },
-        "apple": {
-            "destination": "www.apple.com",
-            "timeout": "3",
-            "interval": 3000,
-            "groups": {
-                "default": "default"
-            }
-        },
-        "turknet": {
-            "destination": "www.turknet.com.tr",
-            "timeout": "3",
-            "interval": 3000,
-            "groups": {
-                "default": "default"
-            }
-        }
+    },
+    "resolvedests": {
+        "www.cisco.com-fromGoogleDNS":
+                {
+                "destination" : "www.cisco.com",
+                "timeout": "3",
+                "interval": 3000,
+                "resolveServer": "8.8.8.8:53",
+                "groups": {
+                    "default" : "default"
+                }
+                },
+        "www.cisco.com-fromCFDNS":
+                {
+                "destination" : "www.cisco.com",
+                "timeout": "3",
+                "interval": 3000,
+                "resolveServer": "1.1.1.1:53",
+                "groups": {
+                    "default" : "default"
+                }
+                },
+        "www.cisco.com-usingLocal":
+                        {
+                        "destination" : "www.trendyol.com",
+                        "timeout": "3",
+                        "interval": 3000,
+                        "groups": {
+                            "default" : "default"
+                        }
+                        }
+    },
+    "tracedests": {
+        "www.cisco.com":
+                {
+                "destination" : "www.cisco.com",
+                "timeout": "3",
+                "interval": 60000,
+                "groups": {
+                    "default" : "default"
+                }
+                }
     }
 }
