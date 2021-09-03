@@ -168,7 +168,6 @@ func (collector *promStatsCollector) Collect(ch chan<- prometheus.Metric) {
 			hopAs = fmt.Sprintf("%f", statsserver.IPHOLDER[hopNet])
 			hopHolder = statsserver.IPHOLDER[hopNet]
 		}
-
 		ps := prometheus.NewMetricWithTimestamp(time.Now(), prometheus.MustNewConstMetric(statsserver.PromCollector.traceHopRTT, prometheus.GaugeValue, float64(stat.NmonStat.GetTracestat().HopRTT), stat.ClientName, stat.ClientNet, fmt.Sprintf("%f", stat.ClientAS), stat.ClientASHolder, stat.NmonStat.GetTracestat().GetDestination(), hopAs, hopHolder, stat.NmonStat.GetTracestat().GetHopIP()))
 		ch <- ps
 		statsserver.Logging.Debugf("statsserver: prom collector succecssfully write trace hop rtt stat:%v", ps)
@@ -400,6 +399,7 @@ func main() {
 	go func() {
 		statsserver.Logging.Infof("statsserver: prometheus server is initialized with parameters:%+v", statsserver.PromMetricServerAddr)
 		reg := prometheus.NewPedanticRegistry()
+
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
 			reg,
@@ -413,7 +413,6 @@ func main() {
 			h.ServeHTTP(w, r)
 		})
 		panic(http.ListenAndServe(statsserver.PromMetricServerAddr, nil))
-		prometheus.DefMaxAge.Hours()
 	}()
 	grpcServer := grpc.NewServer(grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 		MinTime:             5 * time.Second, // If a client pings more than once every 5 seconds, terminate the connection
